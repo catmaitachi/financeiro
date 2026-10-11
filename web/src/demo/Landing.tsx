@@ -60,16 +60,18 @@ export function Landing() {
             className="fixed inset-x-0 top-0 z-(--z-nav) px-4 pt-4 md:px-6"
           >
             <LiquidBar className="mx-auto h-16 max-w-[1180px]">
-              <div className="flex w-full items-center justify-between gap-4 pr-3 pl-6">
-                <a href={import.meta.env.BASE_URL} className="font-display text-lg font-semibold text-text">
-                  Financeiro
+              <div className="flex w-full min-w-0 items-center justify-between gap-4 pr-3 pl-5 sm:pl-6">
+                <a href={import.meta.env.BASE_URL} className="truncate font-display text-md font-semibold text-text sm:text-lg">
+                  O seu painel financeiro
                 </a>
                 <nav className="flex items-center gap-2" aria-label="Atalhos">
                   <AnchorButton variant="ghost" href={REPOSITORY_URL} icon={<GithubLogoIcon />} className="max-sm:hidden">
                     Código
                   </AnchorButton>
-                  <AnchorButton variant="primary" href={DEMO_URL}>
-                    Abrir a demonstração
+                  {/* Em telas estreitas o título ocupa a barra: o rótulo encurta, a ação é a mesma. */}
+                  <AnchorButton variant="primary" href={DEMO_URL} aria-label="Abrir a demonstração">
+                    <span className="sm:hidden">Abrir</span>
+                    <span className="max-sm:hidden">Abrir a demonstração</span>
                   </AnchorButton>
                 </nav>
               </div>

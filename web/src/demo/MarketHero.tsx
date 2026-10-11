@@ -1,6 +1,6 @@
 import { ArrowRightIcon, GithubLogoIcon } from '@phosphor-icons/react'
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useScroll, useTransform } from 'motion/react'
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { duration, ease, itemVariants, staggerVariants } from '@/design/motion'
 import { DEMO_APP_BASE, REPOSITORY_URL } from '@/lib/demo'
 import { AnchorButton } from '@/ui/Button'
@@ -19,15 +19,12 @@ interface Candle {
 }
 
 const CANDLES = 64
-const STEP = 20
-const BODY = 10
-const WIDTH = CANDLES * STEP
-const HEIGHT = 420
+/** O "agora" fica a dois terços da largura: o terço da direita é o futuro, onde aparecem as previsões. */
+const NOW_AT = 2 / 3
 /** Faixa de baixo reservada às barras de volume. */
 const VOLUME_BAND = 64
-/** A cada quantos milissegundos o preço se mexe, e a cada quantas mexidas a vela fecha e abre outra. */
-const TICK_MS = 700
-const TICKS_PER_CANDLE = 3
+/** Um compasso do pregão. A cada três: aparece a previsão, ela se sustenta, e o salto é sorteado. */
+const BEAT_MS = 800
 const SLIDE = 0.7
 
 /** Gerador com semente (mulberry32): o pregão do hero é o mesmo a cada visita. */
@@ -116,22 +113,19 @@ export function MarketHero({ onVisibilityChange }: MarketHeroProps) {
         initial="initial"
         animate="enter"
         style={still ? undefined : { y: copyY }}
-        className="relative z-(--z-content) mx-auto flex w-full max-w-[1180px] flex-col items-start px-4 pt-8 md:px-6"
+        className="relative z-(--z-content) mx-auto flex w-full max-w-[1180px] flex-col items-center px-4 pt-16 text-center md:px-6 md:pt-24"
       >
-        <motion.p variants={itemVariants} className="font-display text-lg font-semibold text-text">
-          Financeiro
-        </motion.p>
         <motion.h1
           variants={itemVariants}
-          className="mt-12 max-w-[22ch] text-2xl font-semibold tracking-[-0.03em] text-balance text-text md:mt-16 lg:text-display"
+          className="max-w-[22ch] text-2xl font-semibold tracking-[-0.03em] text-balance text-text lg:text-display"
         >
           O seu painel financeiro
         </motion.h1>
-        <motion.p variants={itemVariants} className="mt-6 max-w-[52ch] text-md text-text-2">
+        <motion.p variants={itemVariants} className="mt-6 max-w-[52ch] text-md text-balance text-text-2">
           Contas e cartões chegam pelo Open Finance para um painel que roda só na sua máquina, com cada compra no mês da
           fatura.
         </motion.p>
-        <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center gap-3">
+        <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <AnchorButton variant="primary" href={DEMO_URL} icon={<ArrowRightIcon />} className="flex-row-reverse">
             Abrir a demonstração
           </AnchorButton>
@@ -154,182 +148,252 @@ export function MarketHero({ onVisibilityChange }: MarketHeroProps) {
   )
 }
 
+type Direction = 'up' | 'down'
+
+/** As duas apostas para o próximo salto, e a chance de a de alta ser a sorteada. */
+interface Forecast {
+  id: number
+  up: number
+  down: number
+  upOdds: number
+}
+
+interface Market {
+  candles: Candle[]
+  forecast: Forecast | null
+  /** Para que lado foi o último sorteio: a aposta vencedora demora mais a sumir. */
+  picked: Direction | null
+}
+
+const FORECAST_TONE: Record<Direction, string> = {
+  up: 'fill-market-up stroke-market-up',
+  down: 'fill-market-down stroke-market-down',
+}
+
 /**
- * O pregão. Depois de se desenhar, ele corre: o preço se mexe a cada instante,
- * a vela da ponta fecha, outra abre e o gráfico inteiro anda uma casa para a
- * esquerda. O ponteiro ganha uma mira, como numa tela de corretora.
+ * O pregão. O "agora" fica a dois terços da largura, marcado por uma mira que
+ * sobe e desce com o preço. No terço da direita aparecem duas previsões para o
+ * próximo salto, uma de alta e uma de baixa; uma delas é sorteada, vira a vela
+ * seguinte, e o gráfico anda uma casa para a esquerda.
  */
 function CandleChart({ still, running }: { still: boolean; running: boolean }) {
   const opening = useMemo(session, [])
-  const [candles, setCandles] = useState(opening)
-  const random = useRef(seeded(7))
-  const ticks = useRef(0)
-  const svg = useRef<SVGSVGElement>(null)
-  const aimX = useMotionValue(0)
-  const aimY = useMotionValue(0)
-  const aimOpacity = useMotionValue(0)
+  const box = useRef<HTMLDivElement>(null)
+  const beats = useRef(-1)
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null)
 
-  // A escala de preço é fixa, calculada na abertura; o preço novo é puxado de volta para o meio dela.
+  // A escala de preço é fixa, calculada na abertura; as previsões nunca saem dela.
   const scale = useMemo(() => {
     const top = Math.max(...opening.map((candle) => candle.high)) + 36
     const bottom = Math.min(...opening.map((candle) => candle.low)) - 12
-    return { top, bottom, center: bottom + (top - bottom) * 0.6 }
+    return { top, bottom, center: bottom + (top - bottom) * 0.55 }
   }, [opening])
+
+  const forecastFor = useMemo(
+    () =>
+      (last: Candle): Forecast => ({
+        id: last.id,
+        up: Math.min(scale.top - 16, last.close + 8 + Math.random() * 20),
+        down: Math.max(scale.bottom + 16, last.close - 8 - Math.random() * 20),
+        // Quanto mais longe do meio da escala, maior a chance de o sorteio trazer o preço de volta.
+        upOdds: Math.min(0.85, Math.max(0.15, 0.5 + (scale.center - last.close) / (scale.top - scale.bottom))),
+      }),
+    [scale],
+  )
+
+  const [market, setMarket] = useState<Market>(() => ({
+    candles: opening,
+    // Com "reduzir movimento" o pregão não corre: fica uma previsão parada, para a ideia continuar à vista.
+    forecast: still ? forecastFor(opening[opening.length - 1]!) : null,
+    picked: null,
+  }))
+
+  useEffect(() => {
+    const element = box.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      setSize({ width: entry!.contentRect.width, height: entry!.contentRect.height })
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!running) return
     const timer = setInterval(() => {
       // Aba em segundo plano não desenha: sem esta pausa, as velas que saem se acumulariam à espera da animação.
       if (document.hidden) return
-      ticks.current += 1
-      const closing = ticks.current % TICKS_PER_CANDLE === 0
-      const noise = (random.current() - 0.5) * 16
-      const volume = 0.25 + random.current() * 0.75
-      setCandles((current) => {
-        const last = current[current.length - 1]!
-        const pulled = last.close + noise + (scale.center - last.close) * 0.07
-        const close = Math.min(scale.top - 16, Math.max(scale.bottom + 16, pulled))
-        const moved = { ...last, close, high: Math.max(last.high, close), low: Math.min(last.low, close) }
-        if (!closing) return [...current.slice(0, -1), moved]
-        // A vela nova nasce chata, no preço em que a anterior fechou, e cresce nas mexidas seguintes.
-        const next = { id: last.id + 1, open: close, close, high: close, low: close, volume }
-        return [...current.slice(1, -1), moved, next]
+      beats.current += 1
+      const beat = ((beats.current % 3) + 3) % 3
+      setMarket((current) => {
+        const last = current.candles[current.candles.length - 1]!
+        if (beat === 1) return { ...current, forecast: forecastFor(last), picked: null }
+        if (beat !== 0 || !current.forecast) return current
+        // O sorteio: uma das duas previsões vira a próxima vela.
+        const picked: Direction = Math.random() < current.forecast.upOdds ? 'up' : 'down'
+        const close = current.forecast[picked]
+        const next: Candle = {
+          id: last.id + 1,
+          open: last.close,
+          close,
+          high: Math.max(last.close, close) + Math.random() * 7,
+          low: Math.min(last.close, close) - Math.random() * 7,
+          volume: 0.25 + Math.random() * 0.75,
+        }
+        return { candles: [...current.candles.slice(1), next], forecast: null, picked }
       })
-    }, TICK_MS)
+    }, BEAT_MS)
     return () => clearInterval(timer)
-  }, [running, scale])
+  }, [running, forecastFor])
 
-  const chartHeight = HEIGHT - VOLUME_BAND
-  const y = (price: number) => 16 + ((scale.top - price) / (scale.top - scale.bottom)) * (chartHeight - 32)
-  const x = (index: number) => index * STEP + STEP / 2
-  const firstId = candles[0]!.id
+  const { candles, forecast, picked } = market
   const live = candles[candles.length - 1]!
 
-  // Média móvel de cinco velas: a linha que resume a direção.
-  const average = candles
-    .map((_, index) => {
-      const window = candles.slice(Math.max(0, index - 4), index + 1)
-      return `${index === 0 ? 'M' : 'L'}${x(index)} ${y(window.reduce((sum, candle) => sum + candle.close, 0) / window.length)}`
-    })
-    .join(' ')
+  const chart = (() => {
+    if (!size) return null
+    const { width, height } = size
+    const step = width < 640 ? 14 : 20
+    const body = step / 2
+    const now = Math.round(width * NOW_AT)
+    const chartHeight = height - VOLUME_BAND
+    const y = (price: number) => 16 + ((scale.top - price) / (scale.top - scale.bottom)) * (chartHeight - 32)
+    const x = (index: number) => now - (candles.length - 1 - index) * step
+    const liveY = y(live.close)
+    const horizon = now + (width - now) * 0.78
+    const slide = { duration: SLIDE, ease: ease.out }
+    const grow = { duration: 0.6, ease: ease.out }
 
-  const aim = (event: PointerEvent<SVGSVGElement>) => {
-    const matrix = svg.current?.getScreenCTM()
-    if (!matrix) return
-    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
-    aimX.set(point.x)
-    aimY.set(point.y)
-    aimOpacity.set(1)
-  }
+    return (
+      <svg width={width} height={height} className="block">
+        {[0.2, 0.4, 0.6, 0.8].map((line) => (
+          <line key={line} x1={0} x2={width} y1={chartHeight * line} y2={chartHeight * line} className="stroke-edge" strokeWidth={1} />
+        ))}
 
-  const slide = { duration: SLIDE, ease: ease.out }
-  const tick = { duration: TICK_MS / 1000, ease: ease.inOut }
+        <AnimatePresence initial={!still}>
+          {candles.map((candle, index) => {
+            if (x(index) < -step) return null
+            const up = candle.close >= candle.open
+            // As velas da abertura entram em fila, da esquerda para a direita; as sorteadas nascem na casa da previsão.
+            const born = candle.id >= CANDLES
+            const delay = born ? 0 : 0.25 + Math.max(0, x(index) / step) * 0.016
+            const bar = candle.volume * (VOLUME_BAND - 12)
+            return (
+              <motion.g
+                key={candle.id}
+                initial={{ opacity: born ? 1 : 0, x: born ? now + step : x(index) }}
+                animate={{ opacity: 1, x: x(index) }}
+                exit={{ opacity: 0, x: x(index) - step }}
+                transition={{ x: slide, opacity: { duration: duration.layout, ease: ease.out, delay } }}
+                className={up ? 'fill-market-up stroke-market-up' : 'fill-market-down stroke-market-down'}
+              >
+                <motion.line
+                  x1={0}
+                  x2={0}
+                  strokeWidth={1.5}
+                  initial={{ y1: y(candle.open), y2: y(candle.open) }}
+                  animate={{ y1: y(candle.high), y2: y(candle.low) }}
+                  transition={{ ...grow, delay }}
+                />
+                <motion.rect
+                  x={-body / 2}
+                  width={body}
+                  rx={2}
+                  stroke="none"
+                  initial={{ y: y(candle.open), height: 2 }}
+                  animate={{ y: y(Math.max(candle.open, candle.close)), height: Math.max(2, Math.abs(y(candle.open) - y(candle.close))) }}
+                  transition={{ ...grow, delay }}
+                />
+                <motion.rect
+                  x={-body / 2}
+                  width={body}
+                  stroke="none"
+                  opacity={0.3}
+                  initial={{ y: height, height: 0 }}
+                  animate={{ y: height - bar, height: bar }}
+                  transition={{ duration: duration.layout, ease: ease.out, delay }}
+                />
+              </motion.g>
+            )
+          })}
+        </AnimatePresence>
+
+        {/* As duas previsões para o próximo salto. No sorteio, a que perde some na hora e a que vence se demora. */}
+        <AnimatePresence custom={picked}>
+          {forecast
+            ? (['up', 'down'] as const).map((direction) => {
+                const target = forecast[direction]
+                const targetY = y(target)
+                const far = y(Math.min(scale.top - 8, Math.max(scale.bottom + 8, live.close + (target - live.close) * 2.4)))
+                return (
+                  <motion.g
+                    key={`${forecast.id}-${direction}`}
+                    custom={picked}
+                    variants={{
+                      initial: { opacity: 0 },
+                      enter: { opacity: 1, transition: { duration: duration.state } },
+                      exit: (winner: Direction | null) => ({
+                        opacity: 0,
+                        transition: { duration: winner === direction ? 0.6 : duration.feedback },
+                      }),
+                    }}
+                    initial={still ? false : 'initial'}
+                    animate="enter"
+                    exit="exit"
+                    className={FORECAST_TONE[direction]}
+                  >
+                    <motion.path
+                      d={`M${now} ${liveY} L${now + step} ${targetY} L${horizon} ${far}`}
+                      fill="none"
+                      strokeWidth={1.5}
+                      strokeLinejoin="round"
+                      strokeOpacity={0.7}
+                      initial={still ? false : { pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.6, ease: ease.out }}
+                    />
+                    <rect
+                      x={now + step - body / 2}
+                      y={Math.min(liveY, targetY)}
+                      width={body}
+                      height={Math.max(2, Math.abs(targetY - liveY))}
+                      rx={2}
+                      fillOpacity={0.22}
+                      strokeWidth={1}
+                    />
+                    <text x={horizon + 8} y={far + 4} stroke="none" fontSize={12}>
+                      {direction === 'up' ? '▲' : '▼'}
+                    </text>
+                  </motion.g>
+                )
+              })
+            : null}
+        </AnimatePresence>
+
+        {/* A mira do preço de agora: a vertical marca o presente, a horizontal sobe e desce com a bolsa. */}
+        <line x1={now} x2={now} y1={0} y2={height} className="stroke-text-off" strokeWidth={1} />
+        <motion.g initial={false} animate={{ y: liveY }} transition={still ? { duration: 0 } : grow}>
+          <line x1={0} x2={width} y1={0} y2={0} className="stroke-text-off" strokeWidth={1} />
+          {still ? null : (
+            <motion.circle
+              cx={now}
+              cy={0}
+              fill="none"
+              className="stroke-text"
+              strokeWidth={1.5}
+              animate={{ r: [3, 14], opacity: [0.7, 0] }}
+              transition={{ duration: 1.6, ease: 'easeOut', repeat: Infinity }}
+            />
+          )}
+          <circle cx={now} cy={0} r={3} className="fill-text" />
+        </motion.g>
+      </svg>
+    )
+  })()
 
   return (
-    // `slice` ancorado à direita: em telas estreitas somem as velas antigas, nunca a última.
-    <svg
-      ref={svg}
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      preserveAspectRatio="xMaxYMid slice"
-      className="absolute inset-0 size-full"
-      onPointerMove={still ? undefined : aim}
-      onPointerLeave={() => aimOpacity.set(0)}
-    >
-      {[0.2, 0.4, 0.6, 0.8].map((line) => (
-        <line key={line} x1={0} x2={WIDTH} y1={chartHeight * line} y2={chartHeight * line} className="stroke-edge" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-      ))}
-
-      <AnimatePresence initial={!still}>
-        {candles.map((candle, index) => {
-          const up = candle.close >= candle.open
-          // Só as velas da abertura entram em fila; as que nascem depois aparecem na hora.
-          const delay = candle.id < CANDLES ? 0.25 + candle.id * 0.016 : 0
-          const bar = candle.volume * (VOLUME_BAND - 12)
-          return (
-            <motion.g
-              key={candle.id}
-              initial={{ opacity: 0, x: x(index) }}
-              animate={{ opacity: 1, x: x(index) }}
-              exit={{ opacity: 0, x: x(index - 1) }}
-              transition={{ x: slide, opacity: { duration: duration.layout, ease: ease.out, delay } }}
-              className={up ? 'fill-market-up stroke-market-up' : 'fill-market-down stroke-market-down'}
-            >
-              <motion.line
-                x1={0}
-                x2={0}
-                strokeWidth={1.5}
-                initial={{ y1: y(candle.open), y2: y(candle.open) }}
-                animate={{ y1: y(candle.high), y2: y(candle.low) }}
-                transition={{ ...tick, delay }}
-              />
-              <motion.rect
-                x={-BODY / 2}
-                width={BODY}
-                rx={2}
-                stroke="none"
-                initial={{ y: y(candle.open), height: 2 }}
-                animate={{ y: y(Math.max(candle.open, candle.close)), height: Math.max(2, Math.abs(y(candle.open) - y(candle.close))) }}
-                transition={{ ...tick, delay }}
-              />
-              <motion.rect
-                x={-BODY / 2}
-                width={BODY}
-                stroke="none"
-                opacity={0.3}
-                initial={{ y: HEIGHT, height: 0 }}
-                animate={{ y: HEIGHT - bar, height: bar }}
-                transition={{ duration: duration.layout, ease: ease.out, delay }}
-              />
-            </motion.g>
-          )
-        })}
-      </AnimatePresence>
-
-      {/* A linha do preço de agora: acompanha a última vela, com um ponto que pulsa na ponta. */}
-      <motion.line
-        x1={0}
-        x2={WIDTH}
-        className="stroke-text-off"
-        strokeWidth={1}
-        strokeDasharray="4 6"
-        vectorEffect="non-scaling-stroke"
-        initial={false}
-        animate={{ y1: y(live.close), y2: y(live.close) }}
-        transition={tick}
-      />
-      <motion.g initial={false} animate={{ y: y(live.close) }} transition={tick}>
-        {still ? null : (
-          <motion.circle
-            cx={x(CANDLES - 1)}
-            cy={0}
-            fill="none"
-            className="stroke-text"
-            strokeWidth={1.5}
-            animate={{ r: [3, 14], opacity: [0.7, 0] }}
-            transition={{ duration: 1.6, ease: 'easeOut', repeat: Infinity }}
-          />
-        )}
-        <circle cx={x(CANDLES - 1)} cy={0} r={3} className="fill-text" />
-      </motion.g>
-
-      {/* Refeita a cada vela que abre, já uma casa à direita, para deslizar junto com as velas em vez de ondular. */}
-      <motion.g key={firstId} initial={firstId === 0 ? false : { x: STEP }} animate={{ x: 0 }} transition={slide}>
-        <motion.path
-          fill="none"
-          className="stroke-text-2"
-          strokeWidth={1.5}
-          strokeLinejoin="round"
-          initial={firstId === 0 && !still ? { d: average, pathLength: 0, opacity: 0 } : { d: average, pathLength: 1, opacity: 1 }}
-          animate={{ d: average, pathLength: 1, opacity: 1 }}
-          transition={{ d: tick, pathLength: { duration: 1.6, ease: ease.inOut, delay: 0.5 }, opacity: { duration: duration.state, delay: 0.5 } }}
-        />
-      </motion.g>
-
-      <motion.g style={{ opacity: aimOpacity }} className="stroke-text-3" strokeWidth={1} pointerEvents="none">
-        <motion.line x1={aimX} x2={aimX} y1={0} y2={HEIGHT} vectorEffect="non-scaling-stroke" />
-        <motion.line x1={0} x2={WIDTH} y1={aimY} y2={aimY} vectorEffect="non-scaling-stroke" />
-      </motion.g>
-    </svg>
+    <div ref={box} className="absolute inset-0">
+      {chart}
+    </div>
   )
 }
 

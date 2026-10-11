@@ -171,7 +171,7 @@ O banco é a divisão principal do produto. O nome é padronizado em `shared/ban
 
 A demonstração pública (`npm run demo:dev`, `web/src/demo/`) abre com uma página que apresenta o projeto e leva ao aplicativo navegável. Ela mora no mesmo mundo do produto: o mesmo chão de mercado, as mesmas superfícies, os mesmos tokens.
 
-- A abertura lê o dinheiro como um pregão (`MarketHero`): título solto sobre o chão, alinhado à esquerda, em `text-display` (`text-2xl` em telas estreitas), uma frase e as duas ações, com a marca escrita no alto. Abaixo, um gráfico de velas de ponta a ponta da janela e uma fita de cotações com o que o aplicativo acompanha.
+- A abertura lê o dinheiro como um pregão (`MarketHero`): título, uma frase e as duas ações, centralizados sobre o chão, em `text-display` (`text-2xl` em telas estreitas). Abaixo, um gráfico de velas de ponta a ponta da janela e uma fita de cotações com o que o aplicativo acompanha. A abertura não tem barra nem marca: o nome aparece no cabeçalho, que só entra depois.
 - Verde e vermelho seguem a regra do produto também aqui: vela de alta e `▲` em `market-up`, vela de baixa e `▼` em `market-down`. O pregão é cenário (gerado com semente, igual a cada visita); os valores da fita são os da demonstração.
 - A prova é o produto: capturas reais das telas em molduras `surface`, e o campo de previsão funcionando com o analisador de verdade. Nada de ilustração no lugar de conteúdo.
 - Cada seção tem um desenho próprio: texto empilhado, visita presa na janela, campo interativo largo, ladrilhos de tamanhos diferentes, texto ao lado do terminal. Nenhum se repete, e nenhuma seção leva rótulo acima do título.
@@ -179,9 +179,9 @@ A demonstração pública (`npm run demo:dev`, `web/src/demo/`) abre com uma pá
 
 A rolagem conta a história, e cada movimento tem um motivo:
 
-- **O pregão abre e corre.** As velas crescem em sequência ao carregar, com as barras de volume embaixo, e a média móvel se traça por cima. Depois o mercado segue aberto: o preço se mexe a cada 0,7 s, a vela da ponta fecha a cada três mexidas, outra nasce e o gráfico inteiro anda uma casa para a esquerda. Um ponto pulsa no preço de agora, e o ponteiro ganha uma mira. Ao rolar, o texto sobe mais rápido que o gráfico, que recua e esmaece. O pregão para quando a abertura sai da janela ou a aba vai para segundo plano.
+- **O pregão abre e corre.** As velas crescem em sequência ao carregar, com as barras de volume embaixo. O "agora" fica a dois terços da largura, marcado por uma mira: a vertical é o presente, a horizontal sobe e desce com o preço, e um ponto pulsa no cruzamento. No terço da direita, o futuro, aparecem duas previsões para o próximo salto, uma de alta (`▲`, verde) e uma de baixa (`▼`, vermelha). A cada três compassos de 0,8 s uma delas é sorteada: a que perde some na hora, a que vence vira a vela seguinte e o gráfico anda uma casa para a esquerda. Ao rolar, o texto sobe mais rápido que o gráfico, que recua e esmaece. O pregão para quando a abertura sai da janela ou a aba vai para segundo plano; com "reduzir movimento", fica parado com uma previsão à vista.
 - **A fita passa** devagar e para sob o ponteiro. É a única faixa rolante da página.
-- **O cabeçalho espera.** Enquanto a abertura ocupa a janela não há barra no topo; ela desce quando a abertura sai e some quando se volta ao início.
+- **O cabeçalho espera.** Enquanto a abertura ocupa a janela não há barra no topo; ela desce quando a abertura sai, levando o título da página ("O seu painel financeiro"), e some quando se volta ao início.
 - **A tela se levanta.** A captura do Painel chega deitada (`rotateX` de 26°) e fica de pé conforme sobe na janela: a rolagem traz o produto para a frente.
 - **A visita prende na janela** (só a partir de 1024 px). A seção fica fixa enquanto a rolagem troca a tela mostrada; o fio acima de cada parada enche com o avanço e os títulos também são botões. Em telas estreitas vira uma sequência simples.
 - **As demais seções chegam** com `staggerVariants` e `itemVariants` ao entrar na janela, uma vez.
