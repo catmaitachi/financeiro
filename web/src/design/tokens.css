@@ -128,6 +128,9 @@
   --text-2xl--line-height: 2.75rem;
   --text-hero: 3.5rem;
   --text-hero--line-height: 3.75rem;
+  /* Só o título da página de apresentação, em telas largas. */
+  --text-display: 4.5rem;
+  --text-display--line-height: 4.5rem;
 
   /* --- Forma ----------------------------------------------------------- */
   /* Controles são pílulas; superfícies usam lg; o que mora dentro delas usa md. */

@@ -13,7 +13,7 @@ import {
   type ProviderItem,
   type ProviderTransaction,
 } from '../src/modules/provider/provider.ts'
-import { openDatabase } from '../src/platform/db/database.ts'
+import { openDatabase } from '../src/platform/db/open-database.ts'
 import { silentLogger, type Logger } from '../src/platform/logger.ts'
 
 export const VALID: ProviderCredentials = {

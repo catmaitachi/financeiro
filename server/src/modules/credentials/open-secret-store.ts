@@ -2,7 +2,8 @@ import { DpapiSecretStore } from './dpapi-secret-store.ts'
 import { FileSecretStore } from './file-secret-store.ts'
 import { LibsecretSecretStore } from './libsecret-secret-store.ts'
 import type { CommandRunner } from './run-command.ts'
-import { KeychainSecretStore, type KeychainLabels, type SecretStore, type StoredSecrets } from './secret-store.ts'
+import { KeychainSecretStore } from './keychain-secret-store.ts'
+import type { KeychainLabels, SecretStore, StoredSecrets } from './secret-store.ts'
 
 export interface SecretStoreOptions {
   service: string

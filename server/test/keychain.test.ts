@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { openSecretStore } from '../src/modules/credentials/open-secret-store.ts'
-import { KeychainSecretStore } from '../src/modules/credentials/secret-store.ts'
+import { KeychainSecretStore } from '../src/modules/credentials/keychain-secret-store.ts'
 
 // Mexe no Keychain de verdade (com valores fictícios, em um serviço descartável),
 // por isso só roda quando pedido: KEYCHAIN_TEST=1 npm test

@@ -43,10 +43,19 @@ export class ApiError extends Error {
 /** Avisa a aplicação de que a Pluggy recusou as credenciais (leva de volta a /setup). */
 export const CREDENTIALS_REQUIRED_EVENT = 'financeiro:credentials-required'
 
+/** Quem atende as chamadas a `/api`. Por padrão, o servidor local; a demo troca por um que roda no navegador. */
+export type ApiTransport = (path: string, init: RequestInit) => Promise<Response>
+
+let transport: ApiTransport = (path, init) => fetch(`/api${path}`, init)
+
+export function setApiTransport(next: ApiTransport) {
+  transport = next
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let response: Response
   try {
-    response = await fetch(`/api${path}`, {
+    response = await transport(path, {
       method,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),

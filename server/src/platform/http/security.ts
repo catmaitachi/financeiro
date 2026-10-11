@@ -8,7 +8,7 @@ function hostnameOf(hostHeader: string): string {
 }
 
 /**
- * A aplicação não tem login porque só atende o próprio Mac. Estas duas
+ * A aplicação não tem login porque só atende a própria máquina. Estas duas
  * verificações mantêm essa premissa verdadeira mesmo com um navegador aberto
  * em sites de terceiros:
  *

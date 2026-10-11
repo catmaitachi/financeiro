@@ -90,7 +90,7 @@ export function AgentSettings() {
   return (
     <Section icon={<RobotIcon />} title="Agentes (MCP)">
       <p className="max-w-[62ch] text-sm text-text-3">
-        Deixe seus agentes consultarem o Financeiro. Funciona enquanto o aplicativo estiver aberto, e só neste Mac.
+        Deixe seus agentes consultarem o Financeiro. Funciona enquanto o aplicativo estiver aberto, e só nesta máquina.
       </p>
 
       {info.isPending ? (
@@ -190,7 +190,7 @@ export function AgentSettings() {
           </div>
 
           <p className="mt-4 max-w-[62ch] text-sm text-text-3">
-            Este controle vale para agentes que só falam com o Financeiro por aqui. Um agente que também roda comandos neste Mac
+            Este controle vale para agentes que só falam com o Financeiro por aqui. Um agente que também roda comandos nesta máquina
             alcança o aplicativo por fora e pode liberar a escrita sozinho. Para esses, revise cada comando antes de aprovar.
           </p>
         </>

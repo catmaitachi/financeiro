@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { IS_DEMO } from '@/lib/demo'
 import { invalidateLedger, keys, queryClient } from '@/lib/query'
 import { useToast } from '@/ui/Toast'
 
@@ -49,6 +50,11 @@ export function usePluggyConnect() {
 
   const open = useCallback(
     async (itemId?: string) => {
+      // Na demonstração não há Pluggy de verdade do outro lado: a janela de autorização nunca carregaria.
+      if (IS_DEMO) {
+        notify('A demonstração usa bancos fictícios. Para conectar os seus, rode o Financeiro na sua máquina.')
+        return
+      }
       setOpening(itemId ?? 'new')
       let timer: ReturnType<typeof setTimeout> | undefined
       // Fechar o widget antes de ele aparecer (Esc) encerra a tentativa sem ser um erro.

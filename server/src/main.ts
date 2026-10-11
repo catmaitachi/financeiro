@@ -4,7 +4,7 @@ import { loadConfig, loadEnvFile } from './config.ts'
 import { createContainer } from './container.ts'
 import { openSecretStore } from './modules/credentials/open-secret-store.ts'
 import { MCP_LABELS, VaultMcpTokenStore, mcpVaultService } from './modules/mcp/token-store.ts'
-import { openDatabase } from './platform/db/database.ts'
+import { openDatabase } from './platform/db/open-database.ts'
 import { consoleLogger } from './platform/logger.ts'
 import { systemClock } from './platform/time.ts'
 

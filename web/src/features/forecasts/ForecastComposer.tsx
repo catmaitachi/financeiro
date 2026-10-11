@@ -15,7 +15,7 @@ import { Panel, PanelHeader } from '@/ui/Panel'
 import { useToast } from '@/ui/Toast'
 
 /** O que a expressão vai criar, dito por extenso. */
-function describe(plan: ForecastPlan, start: Month): string {
+export function describePlan(plan: ForecastPlan, start: Month): string {
   const count = plan.amountsCents.length
   const first = plan.amountsCents[0]!
   const last = plan.amountsCents[count - 1]!
@@ -91,7 +91,7 @@ export function ForecastComposer({ defaultStartMonth, currentMonth }: ComposerPr
   }
 
   const months = useMemo(() => Array.from({ length: 25 }, (_, index) => addMonths(currentMonth, index - 6)), [currentMonth])
-  const preview = parsed?.plan ? describe(parsed.plan, startMonth) : null
+  const preview = parsed?.plan ? describePlan(parsed.plan, startMonth) : null
   const isOutflow = (parsed?.plan?.totalCents ?? 0) < 0
 
   return (

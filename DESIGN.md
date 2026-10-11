@@ -4,7 +4,7 @@ Como o Financeiro deve parecer e se mover. Os valores vivem em `web/src/design/t
 
 ## Direção
 
-Um aplicativo de trabalho escuro, calmo e tipográfico, usado por uma pessoa em um Mac. Chão e superfícies são estritamente neutros: preto, grafite, branco e cinza. Verde e vermelho aparecem somente quando carregam semântica financeira (entrada/alta e saída/baixa); as cores oficiais dos bancos ficam restritas aos seus selos e marcas de gráfico. O chão traduz bolsa de valores de forma abstrata. Sobre ele ficam superfícies de vidro, e as barras flutuantes usam o [liquid-glass-react](https://github.com/rdev/liquid-glass-react).
+Um aplicativo de trabalho escuro, calmo e tipográfico, usado por uma pessoa no próprio computador. Chão e superfícies são estritamente neutros: preto, grafite, branco e cinza. Verde e vermelho aparecem somente quando carregam semântica financeira (entrada/alta e saída/baixa); as cores oficiais dos bancos ficam restritas aos seus selos e marcas de gráfico. O chão traduz bolsa de valores de forma abstrata. Sobre ele ficam superfícies de vidro, e as barras flutuantes usam o [liquid-glass-react](https://github.com/rdev/liquid-glass-react).
 
 Três princípios decidem os casos duvidosos:
 
@@ -51,6 +51,7 @@ Não escreva `rgba(...)` nem `/50` em componentes. Se faltar um degrau, o proble
 | `text-xl` | 28 | Valor em destaque dentro de painéis |
 | `text-2xl` | 40 | Título de página |
 | `text-hero` | 56 | O número principal da tela. Um por tela |
+| `text-display` | 72 | O título da página de apresentação, só em telas largas |
 
 Pesos: 400 texto, 500 rótulos e controles, 600 títulos e valores. O número principal usa a mesma grotesca do resto, com algarismos proporcionais. `tabular` (algarismos de largura fixa) só em colunas que precisam alinhar.
 
@@ -165,6 +166,18 @@ O banco é a divisão principal do produto. O nome é padronizado em `shared/ban
 - Contas e cartões não têm destaque próprio: aparecem como "Conta" e "Cartão final 0422", e só servem de filtro em Transações, depois de escolhido o banco.
 - Escolha de banco é um `Segmented` com o selo; filtros de ligar e desligar são `Chip`.
 - Os selos são os logotipos oficiais que cada banco registrou no diretório do Open Finance Brasil (`web/public/banks/`). Quando o arquivo não traz fundo, como o do Nubank, o selo ganha um azulejo branco (`logo-tile`); nos demais o fundo não aparece. Bancos sem arquivo mostram a inicial. A cor de marca continua identificando o banco nas marcas dos gráficos.
+
+## Página de apresentação
+
+A demonstração pública (`npm run demo:dev`, `web/src/demo/`) abre com uma página que apresenta o projeto e leva ao aplicativo navegável. Ela mora no mesmo mundo do produto: o mesmo chão de mercado, as mesmas superfícies, os mesmos tokens.
+
+- O título fica solto sobre o chão, alinhado à esquerda, em `text-display` (`text-2xl` em telas estreitas). É o único lugar que usa esse tamanho.
+- A prova é o produto: capturas reais das telas em molduras `surface`, e o campo de previsão funcionando com o analisador de verdade. Nada de ilustração no lugar de conteúdo.
+- As seções são texto ao lado de uma tela, alternando o lado. Fatos do projeto formam uma lista com linhas finas (`border-edge`), não uma grade de cartões.
+- Uma ação principal por dobra: abrir a demonstração. O código no GitHub é a secundária.
+- Só a primeira tela tem entrada própria (a moldura se revela de cima para baixo, em `entrance`). As seções seguintes chegam com `itemVariants` ao entrar na janela.
+
+Dentro do aplicativo da demonstração, uma faixa acima da navegação avisa que os dados são fictícios e que as alterações somem ao recarregar.
 
 ## Para acrescentar algo
 

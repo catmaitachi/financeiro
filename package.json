@@ -17,6 +17,8 @@
     "mock:api": "node --watch-path=server --watch-path=shared server/src/main.ts --env-file=.env.mock",
     "mock:seed": "node scripts/mock-seed.ts",
     "build": "vite build --config web/vite.config.ts",
+    "demo:dev": "vite --config web/vite.config.ts --mode demo",
+    "demo:build": "vite build --config web/vite.config.ts --mode demo",
     "start": "node server/src/main.ts",
     "test": "node --test \"server/test/**/*.test.ts\"",
     "typecheck": "tsc -p server/tsconfig.json && tsc -p web/tsconfig.json"
@@ -43,8 +45,10 @@
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.6",
+    "sql.js": "^1.14.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"

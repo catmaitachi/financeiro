@@ -15,9 +15,9 @@ interface Mark {
  * logotipos oficiais; sem arquivo, o banco aparece como a inicial do nome.
  */
 const MARKS: Record<string, Mark> = {
-  nubank: { src: '/banks/nubank.svg', tile: true },
-  inter: { src: '/banks/inter.svg' },
-  picpay: { src: '/banks/picpay.svg', crop: true },
+  nubank: { src: `${import.meta.env.BASE_URL}banks/nubank.svg`, tile: true },
+  inter: { src: `${import.meta.env.BASE_URL}banks/inter.svg` },
+  picpay: { src: `${import.meta.env.BASE_URL}banks/picpay.svg`, crop: true },
 }
 
 const SIZE = { sm: 'size-6 rounded-[7px]', md: 'size-9 rounded-[10px]', lg: 'size-11 rounded-[12px]' } as const

@@ -150,7 +150,9 @@ export class ConnectionsService {
         const item = await this.#deps.provider.getItem(itemId)
         this.#deps.writer.upsertItem(item, this.#deps.clock().toISOString())
         if (item.status === 'UPDATING' && Date.now() < deadline) {
-          setTimeout(tick, interval).unref()
+          // `unref` só existe no Node: lá, a espera não segura o processo aberto.
+          const timer: { unref?: () => void } | number = setTimeout(tick, interval)
+          if (typeof timer === 'object') timer.unref?.()
           return
         }
         await this.#deps.sync.run({ trigger: 'connect', itemIds: [itemId] })

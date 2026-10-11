@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/MCP-para_agentes-34d17b?style=flat-square&labelColor=120d0a" alt="MCP para agentes">
 <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-34d17b?style=flat-square&labelColor=120d0a" alt="Licença MIT">
 
-**[Começar](#começar)** · [Conectar agentes](#conectar-agentes-mcp) · [Regras de consolidação](#regras-de-consolidação) · [Arquitetura](#arquitetura) · [Design](DESIGN.md)
+**[Ver a demonstração](https://catmaitachi.github.io/financeiro/)** · [Começar](#começar) · [Conectar agentes](#conectar-agentes-mcp) · [Regras de consolidação](#regras-de-consolidação) · [Arquitetura](#arquitetura) · [Design](DESIGN.md)
 
 </div>
 
@@ -23,7 +23,7 @@
 
 # Painel Financeiro
 
-Seu dinheiro, num painel que roda só no seu Mac.<br>
+Seu dinheiro, num painel que roda só na sua máquina.<br>
 Contas e cartões chegam pelo Open Finance e os dados ficam num banco local, na sua máquina.
 
 </div>
@@ -33,6 +33,8 @@ O Financeiro junta as contas e os cartões dos seus bancos pela [Pluggy](https:/
 O Open Finance só existe no Brasil, então tudo aqui é em português, com reais, fuso `America/Sao_Paulo` e bancos brasileiros.
 
 Frontend em React e TypeScript, backend em Node.js, banco SQLite local. Sem hospedagem, sem login, sem dependência nativa para compilar.
+
+Quer ver antes de instalar? A [demonstração](https://catmaitachi.github.io/financeiro/) é o aplicativo de verdade rodando inteiro no navegador, com bancos e lançamentos fictícios.
 
 <br>
 
@@ -178,7 +180,7 @@ A escrita vem desligada. Ao ligar **Leitura e escrita**, entram: sincronizar, cr
 
 Toda requisição ao `/mcp` exige `Authorization: Bearer <token>`, inclusive as de leitura. O token fica no mesmo cofre das credenciais, num serviço próprio (`<serviço>-mcp`); a interface só mostra o começo e o fim. **Gerar novo token** invalida o anterior na hora. Ele protege contra páginas abertas no navegador e contra DNS rebinding; não protege contra um programa malicioso já rodando na sua conta, que também alcançaria o restante da API local. O texto copiado contém o token: cole só em agentes seus e nunca em arquivos versionados.
 
-O interruptor de escrita tem um limite. Ele vale para agentes que só falam com o Financeiro pelo MCP. A API local (`/api`) não tem login e aceita qualquer processo deste Mac, então um agente que também executa comandos (o Claude Code, por exemplo) consegue ligar a escrita, ler o token ou chamar direto rotas que o MCP não oferece, como apagar previsões. Para esses agentes, o interruptor é um combinado, não uma barreira: revise os comandos antes de aprovar. A barreira de verdade depende de tirar as ações administrativas do HTTP aberto (por IPC, quando o app for empacotado em Electron).
+O interruptor de escrita tem um limite. Ele vale para agentes que só falam com o Financeiro pelo MCP. A API local (`/api`) não tem login e aceita qualquer processo desta máquina, então um agente que também executa comandos (o Claude Code, por exemplo) consegue ligar a escrita, ler o token ou chamar direto rotas que o MCP não oferece, como apagar previsões. Para esses agentes, o interruptor é um combinado, não uma barreira: revise os comandos antes de aprovar. A barreira de verdade depende de tirar as ações administrativas do HTTP aberto (por IPC, quando o app for empacotado em Electron).
 
 </details>
 
@@ -233,13 +235,15 @@ server/src/
     settings/        configurações não secretas
     mcp/             ferramentas dos agentes (MCP), token de acesso e kit de conexão
   container.ts       composição: o único arquivo que conhece todos os módulos
-  routes.ts, app.ts  rotas internas e tratamento de erros
+  routes.ts, api.ts  rotas internas e tratamento de erros, sem depender do Node
+  app.ts             a API mais o que é só do servidor local (guarda de origem, arquivos estáticos)
 web/src/
   design/    tokens, materiais e vocabulário de movimento
   ui/        componentes sem conhecimento do domínio
   lib/       cliente da API, cache e formatação
   features/  uma pasta por área do produto
   app/       composição, navegação e casca
+  demo/      demonstração pública: servidor no navegador e página de apresentação
 scripts/     simulador local da Pluggy e carga de exemplo
 ```
 
@@ -273,7 +277,7 @@ Cadastre em `/setup` as credenciais fictícias que estão em `scripts/mock-fixtu
 npm run mock:seed
 ```
 
-Esse modo usa um banco separado (`data/mock.db`) e um serviço próprio no cofre, então não se mistura com os seus dados. O widget de conexão da Pluggy não funciona contra o simulador; o `mock:seed` conecta as instituições fictícias pela API. Para ver o aviso de MeuPluggy desabilitado, troque `MEUPLUGGY_ENABLED` em `scripts/mock-pluggy.ts`.
+Esse modo usa um banco separado (`data/mock.db`) e um serviço próprio no cofre, então não se mistura com os seus dados. O widget de conexão da Pluggy não funciona contra o simulador; o `mock:seed` conecta as instituições fictícias pela API. Para ver o aviso de MeuPluggy desabilitado, troque `MEUPLUGGY_ENABLED` em `scripts/mock-pluggy-app.ts`.
 
 ### Comandos
 
@@ -286,6 +290,16 @@ Esse modo usa um banco separado (`data/mock.db`) e um serviço próprio no cofre
 | `npm start`           | Serve tudo em `localhost:8787`, sem servidor de desenvolvimento    |
 | `npm test`            | Roda os testes do servidor                                         |
 | `npm run typecheck`   | TypeScript estrito no servidor e na interface                      |
+| `npm run demo:dev`    | A demonstração pública em `localhost:5174/financeiro/`             |
+| `npm run demo:build`  | Compila a demonstração em `web/dist-demo`                          |
+
+### Demonstração pública
+
+A demonstração publicada em [catmaitachi.github.io/financeiro](https://catmaitachi.github.io/financeiro/) não é uma maquete. É o mesmo servidor, com as mesmas rotas, regras e migrações, rodando dentro da aba: o SQLite vira WebAssembly ([sql.js](https://sql.js.org)) e a Pluggy é o simulador de `scripts/mock-pluggy-app.ts`, chamado em memória. Nenhuma requisição sai do navegador, e o que o visitante altera some ao recarregar.
+
+Isso funciona porque a API (`server/src/api.ts`) não depende do Node; o que depende (arquivos estáticos, Keychain, abertura do banco em disco) fica em módulos à parte. O código da demonstração mora em `web/src/demo/` e só entra no pacote quando a interface é compilada no modo `demo`. A raiz do site é uma página de apresentação do projeto; o aplicativo fica em `app/`.
+
+A cada push na `main`, o workflow `.github/workflows/demo.yml` roda os testes, compila e publica no GitHub Pages.
 
 Variáveis opcionais, no `.env`: `FINANCEIRO_PORT` (padrão `8787`) e `FINANCEIRO_DB_PATH` (padrão `data/financeiro.db`).
 

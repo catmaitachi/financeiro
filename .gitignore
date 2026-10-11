@@ -1,5 +1,6 @@
 node_modules/
 web/dist/
+web/dist-demo/
 
 # Dados financeiros locais: banco SQLite, WAL e backups nunca entram no Git.
 data/

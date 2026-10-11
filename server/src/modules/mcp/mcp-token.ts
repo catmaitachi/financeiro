@@ -1,7 +1,15 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { McpTokenStore } from './token-store.ts'
 
-const digest = (value: string) => createHash('sha256').update(value).digest()
+// Web Crypto, e não `node:crypto`: o mesmo módulo roda no Node e no navegador (demo).
+const digest = async (value: string) =>
+  new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))
+
+/** Compara sem sair no primeiro byte diferente. Os dois lados são resumos de mesmo tamanho. */
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  let difference = a.length ^ b.length
+  for (let i = 0; i < a.length; i++) difference |= a[i]! ^ (b[i] ?? 0)
+  return difference === 0
+}
 
 /**
  * Token que os agentes apresentam em `Authorization: Bearer`. Guardado no
@@ -35,7 +43,7 @@ export class McpTokenService {
   /** Comparação em tempo constante, para o tempo de resposta não revelar o token. */
   async verify(presented: string | null): Promise<boolean> {
     if (!presented) return false
-    return timingSafeEqual(digest(presented), digest(await this.current()))
+    return sameBytes(await digest(presented), await digest(await this.current()))
   }
 
   /** Versão que dá para exibir: começo e fim, sem o miolo. */
@@ -54,5 +62,7 @@ export class McpTokenService {
 }
 
 function generate(): string {
-  return `fin_${randomBytes(32).toString('base64url')}`
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  const base64 = btoa(String.fromCharCode(...bytes))
+  return `fin_${base64.replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}`
 }

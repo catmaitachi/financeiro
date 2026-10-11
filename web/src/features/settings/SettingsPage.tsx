@@ -150,7 +150,7 @@ function Credentials({ status }: { status: SetupStatus }) {
         open={confirmRemove}
         onClose={() => setConfirmRemove(false)}
         title="Remover as credenciais?"
-        description="O aplicativo deixa de falar com a Pluggy e volta para a tela de configuração. Suas transações, conexões e previsões continuam guardadas neste Mac."
+        description="O aplicativo deixa de falar com a Pluggy e volta para a tela de configuração. Suas transações, conexões e previsões continuam guardadas nesta máquina."
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirmRemove(false)}>
@@ -258,13 +258,13 @@ export function AppearanceSettings() {
 
 export function DataSettings() {
   return (
-    <Section icon={<DatabaseIcon />} title="Seus dados neste Mac">
+    <Section icon={<DatabaseIcon />} title="Seus dados nesta máquina">
         <p className="max-w-[62ch] text-base text-text-2">
           Contas, transações e previsões ficam em um arquivo SQLite dentro da pasta <code className="text-text">data/</code> do
           projeto, que não entra no Git. Nenhuma credencial é gravada nele.
         </p>
         <p className="mt-3 max-w-[62ch] text-base text-text-2">
-          O aplicativo só atende requisições vindas deste Mac. Não há login porque nada dele fica exposto na rede.
+          O aplicativo só atende requisições vindas desta máquina. Não há login porque nada dele fica exposto na rede.
         </p>
     </Section>
   )

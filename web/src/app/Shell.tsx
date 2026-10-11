@@ -82,7 +82,7 @@ export function Shell() {
       <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 pt-8 pb-28 md:px-6 md:pb-16">
         {setup.data?.state === 'unreachable' ? (
           <Notice tone="warning" icon={<CloudSlashIcon size={20} />} title="Sem conexão com a Pluggy" className="mb-6">
-            Você está vendo os dados já guardados neste Mac. A sincronização volta assim que a conexão for restabelecida.
+            Você está vendo os dados já guardados nesta máquina. A sincronização volta assim que a conexão for restabelecida.
           </Notice>
         ) : null}
 

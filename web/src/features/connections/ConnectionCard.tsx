@@ -178,7 +178,7 @@ export function ConnectionCard({ connection, onReconnect, reconnecting }: Connec
         open={confirmRemove}
         onClose={() => setConfirmRemove(false)}
         title={`Remover ${institution.name}?`}
-        description="A conexão é encerrada na Pluggy e as contas, faturas e transações desta instituição são apagadas deste Mac. Previsões cadastradas continuam."
+        description="A conexão é encerrada na Pluggy e as contas, faturas e transações desta instituição são apagadas desta máquina. Previsões cadastradas continuam."
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirmRemove(false)}>

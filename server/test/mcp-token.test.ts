@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { McpTokenService } from '../src/modules/mcp/mcp-token.ts'
-import { KeychainSecretStore, MemorySecretStore, SAFE_SECRET } from '../src/modules/credentials/secret-store.ts'
+import { KeychainSecretStore } from '../src/modules/credentials/keychain-secret-store.ts'
+import { MemorySecretStore, SAFE_SECRET } from '../src/modules/credentials/secret-store.ts'
 import { MCP_LABELS, MemoryMcpTokenStore, VaultMcpTokenStore, mcpVaultService } from '../src/modules/mcp/token-store.ts'
 
 describe('token do MCP', () => {

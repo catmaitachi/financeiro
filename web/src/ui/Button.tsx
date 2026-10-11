@@ -1,5 +1,5 @@
 import { CircleNotchIcon } from '@phosphor-icons/react'
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react'
 import { Link, type LinkProps } from 'react-router'
 import { cn } from '@/lib/cn'
 
@@ -68,6 +68,22 @@ export function LinkButton({ variant = 'quiet', size = 'md', icon, className, ch
       {icon}
       {children}
     </Link>
+  )
+}
+
+interface AnchorButtonProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+  variant?: Variant
+  size?: Size
+  icon?: ReactNode
+}
+
+/** Link comum com aparência de botão: quando o destino fica fora das rotas do aplicativo. */
+export function AnchorButton({ variant = 'quiet', size = 'md', icon, className, children, ...rest }: AnchorButtonProps) {
+  return (
+    <a className={cn(BASE, VARIANT[variant], SIZE[size], className)} {...rest}>
+      {icon}
+      {children}
+    </a>
   )
 }
 
