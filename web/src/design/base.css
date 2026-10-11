@@ -1,0 +1,266 @@
+@import './tokens.css';
+
+/* --- Materiais ----------------------------------------------------------- */
+
+/*
+ * Vidro das superfícies. É uma aproximação web (backdrop-filter, borda de luz
+ * e brilho interno), não o Liquid Glass da Apple. A refração de verdade fica
+ * reservada às barras flutuantes (ui/LiquidBar.tsx).
+ */
+@utility surface {
+  background-color: var(--color-glass);
+  border: 1px solid var(--color-edge);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur-panel)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(150%);
+}
+
+@utility surface-raised {
+  background-color: var(--color-glass-raised);
+  border: 1px solid var(--color-edge-strong);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(var(--blur-float)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-float)) saturate(160%);
+}
+
+@utility surface-sunken {
+  background-color: var(--color-glass-sunken);
+  border: 1px solid var(--color-edge);
+  box-shadow: inset 0 1px 2px 0 rgb(0 0 0 / 0.35);
+}
+
+/* Pílula de seleção: vidro claro com brilho na borda de cima, por baixo do rótulo. */
+@utility lens {
+  border-radius: var(--radius-full);
+  background-image: linear-gradient(180deg, rgb(var(--tint) / var(--alpha-3)), rgb(var(--tint) / var(--alpha-1)));
+  box-shadow:
+    inset 0 1px 0 0 rgb(var(--tint) / var(--alpha-4)),
+    inset 0 0 0 1px rgb(var(--tint) / var(--alpha-2)),
+    0 8px 16px -10px rgb(0 0 0 / 0.8);
+}
+
+/* Números que precisam alinhar em coluna. Valores soltos usam algarismos proporcionais. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Os brilhos de borda da biblioteca do vidro líquido usam `mix-blend-mode`.
+ * Dentro de um elemento fixo isso isola a barra do resto da página e o
+ * desfoque deixa de enxergar o conteúdo que rola por baixo. Com a mistura
+ * normal o brilho continua lá e o vidro volta a funcionar.
+ */
+.liquid-bar > span,
+.liquid-bar > div {
+  mix-blend-mode: normal !important;
+}
+
+/*
+ * O traço claro que a biblioteca desenha na borda fica forte demais sobre o
+ * fundo escuro. Sobra só um fio de luz, e a barra se destaca pela sombra.
+ */
+.liquid-bar > span {
+  opacity: 0.18 !important;
+}
+
+/* A biblioteca do vidro líquido impõe fonte e sombra de texto ao conteúdo: devolve as do produto. */
+.liquid-bar-content {
+  font: 400 var(--text-base) / var(--text-base--line-height) var(--font-sans);
+  color: var(--color-text);
+  text-shadow: none;
+}
+
+/*
+ * O fundo de mercado é mais visível nas bordas. O centro recebe uma camada
+ * neutra e quieta para que gráficos, números e texto nunca disputem atenção.
+ */
+.market-canvas {
+  opacity: 0.4;
+}
+
+.market-background-vignette {
+  background:
+    radial-gradient(circle at 50% 42%, rgb(var(--market-black) / 0.42) 0%, rgb(var(--market-black) / 0.24) 44%, transparent 82%),
+    linear-gradient(180deg, rgb(var(--market-black) / 0.14), transparent 28%, transparent 72%, rgb(var(--market-black) / 0.18));
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-ground);
+    scrollbar-color: rgb(var(--tint) / var(--alpha-3)) transparent;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    color: var(--color-text);
+    caret-color: var(--color-accent);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: rgb(255 255 255 / 0.24);
+    color: var(--color-text);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--tint) / var(--alpha-3));
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--tint) / var(--alpha-4));
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+
+  /* Nada muda de estado de forma seca: todo controle herda esta transição. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [role='tab'],
+  [role='radio'],
+  [role='switch'],
+  [role='menuitem'],
+  a svg,
+  button svg,
+  [data-interactive] {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform, outline-color, filter;
+    transition-duration: var(--dur-state);
+    transition-timing-function: var(--ease-out);
+  }
+
+  /* Foco visível só para teclado, na cor do acento. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  input::placeholder {
+    color: var(--color-text-3);
+  }
+
+  input[type='search']::-webkit-search-cancel-button {
+    appearance: none;
+  }
+
+  select {
+    appearance: none;
+  }
+  select option {
+    background: #111111;
+    color: #f5f5f5;
+  }
+}
+
+/* --- Movimento compartilhado -------------------------------------------- */
+
+@keyframes shimmer {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility skeleton {
+  border-radius: var(--radius-md);
+  background-image: linear-gradient(
+    100deg,
+    rgb(var(--tint) / var(--alpha-1)) 30%,
+    rgb(var(--tint) / var(--alpha-2)) 50%,
+    rgb(var(--tint) / var(--alpha-1)) 70%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.6s var(--ease-in-out) infinite;
+}
+
+@utility spin {
+  animation: spin 0.9s linear infinite;
+}
+
+/* Caractere recém-digitado num campo `typed`: chega 7 px abaixo e sobe até a linha. */
+@keyframes type-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+.typed-char {
+  display: inline-block;
+  animation: type-in var(--dur-state) var(--ease-out) both;
+}
+
+/* Menos movimento: some o deslocamento, ficam as mudanças de opacidade e cor. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Menos transparência: o vidro vira superfície sólida, com o mesmo contraste. */
+@media (prefers-reduced-transparency: reduce) {
+  .market-canvas {
+    opacity: 0.06;
+  }
+  .surface,
+  .surface-raised {
+    background-color: #171717;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .surface-sunken {
+    background-color: #0a0a0a;
+  }
+}

@@ -1,0 +1,154 @@
+/*
+ * Tokens: a única fonte de verdade do sistema visual.
+ * Componentes nunca escrevem cor, raio, sombra, desfoque ou duração "na mão":
+ * usam o que está aqui. A documentação de uso fica em DESIGN.md.
+ */
+@import 'tailwindcss';
+@import '@fontsource-variable/hanken-grotesk';
+@import '@fontsource-variable/bricolage-grotesque';
+
+:root {
+  /* Base estritamente neutra: preto, grafite, branco e cinza. */
+  --tint: 245 245 245;
+  --shade: 0 0 0;
+  --market-black: 5 5 5;
+  --market-up: #3ddc84;
+  --market-down: #ff5c5c;
+
+  /* Escada de opacidade da luz. Texto, bordas e preenchimentos só usam estes degraus. */
+  --alpha-1: 0.06;
+  --alpha-2: 0.12;
+  --alpha-3: 0.22;
+  --alpha-4: 0.38;
+  --alpha-5: 0.6;
+  --alpha-6: 0.76;
+  --alpha-7: 0.96;
+
+  /* Escada de densidade do vidro (quanto de sombra o material carrega). */
+  --density-clear: 0.56;
+  --density-sunken: 0.32;
+  --density-panel: 0.64;
+  --density-raised: 0.8;
+
+  /* Movimento. */
+  --dur-feedback: 120ms;
+  --dur-state: 220ms;
+  --dur-layout: 380ms;
+  --dur-entrance: 640ms;
+
+  /* Camadas. */
+  --z-background: 0;
+  --z-content: 1;
+  --z-nav: 20;
+  --z-overlay: 40;
+  --z-toast: 60;
+}
+
+@theme {
+  /* --- Cor ------------------------------------------------------------- */
+  --color-*: initial;
+
+  --color-ground: #050505;
+  --color-market-ground: #030303;
+  --color-market-mark: #f5f5f5;
+  --color-market-mid: #a3a3a3;
+  --color-market-dark: #525252;
+  --color-market-up: #3ddc84;
+  --color-market-down: #ff5c5c;
+  --color-scrim: rgb(var(--shade) / 0.68);
+  --color-veil: rgb(var(--shade) / 0.62);
+
+  --color-glass: rgb(18 18 18 / var(--density-panel));
+  --color-glass-clear: rgb(12 12 12 / var(--density-clear));
+  --color-glass-raised: rgb(28 28 28 / var(--density-raised));
+  --color-glass-sunken: rgb(var(--shade) / var(--density-sunken));
+  --color-fill-hover: rgb(var(--tint) / var(--alpha-1));
+  --color-fill-active: rgb(var(--tint) / var(--alpha-2));
+  --color-edge: rgb(var(--tint) / var(--alpha-2));
+  --color-edge-strong: rgb(var(--tint) / var(--alpha-3));
+
+  --color-text: rgb(var(--tint) / var(--alpha-7));
+  --color-text-2: rgb(var(--tint) / var(--alpha-6));
+  --color-text-3: rgb(var(--tint) / var(--alpha-5));
+  --color-text-off: rgb(var(--tint) / var(--alpha-4));
+
+  /* Acento neutro; cor fica reservada à semântica financeira e às marcas. */
+  --color-accent: #ededed;
+  --color-accent-strong: #ffffff;
+  --color-accent-ink: #050505;
+  --color-accent-wash: rgb(255 255 255 / 0.12);
+  --color-cream: #f5f5f5;
+  /* Azulejo dos selos de banco cujo arquivo oficial não traz fundo. */
+  --color-logo-tile: #ffffff;
+  --color-brown: #737373;
+  --color-coffee: #262626;
+
+  /* Estado: sempre acompanhado de ícone e rótulo, nunca só cor. */
+  --color-positive: #3ddc84;
+  --color-positive-wash: rgb(61 220 132 / 0.14);
+  --color-negative: #ff5c5c;
+  --color-negative-wash: rgb(255 92 92 / 0.14);
+  --color-warning: #d4d4d4;
+  --color-warning-wash: rgb(212 212 212 / 0.12);
+
+  /* Dados: entradas e gastos se separam por matiz e por claridade. */
+  --color-data-income: #3ddc84;
+  --color-data-expense: #ff5c5c;
+
+  /* Fallbacks para bancos sem cor de marca cadastrada, ordenados por claridade. */
+  --color-series-1: #f5f5f5;
+  --color-series-2: #a3a3a3;
+  --color-series-3: #737373;
+  --color-series-4: rgb(var(--tint) / var(--alpha-4));
+
+  /* Cores de marca dos bancos. Pintam o selo e as marcas dos gráficos, nunca texto ou superfícies. */
+  --color-brand-nubank: #820ad1;
+  --color-brand-inter: #ff7a00;
+  --color-brand-picpay: #21c25e;
+  --color-data-quiet: rgb(var(--tint) / var(--alpha-3));
+
+  /* --- Tipografia ------------------------------------------------------ */
+  --font-sans: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Hanken Grotesk Variable', ui-sans-serif, sans-serif;
+
+  --text-*: initial;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.25rem;
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.75rem;
+  --text-xl--line-height: 2.125rem;
+  --text-2xl: 2.5rem;
+  --text-2xl--line-height: 2.75rem;
+  --text-hero: 3.5rem;
+  --text-hero--line-height: 3.75rem;
+
+  /* --- Forma ----------------------------------------------------------- */
+  /* Controles são pílulas; superfícies usam lg; o que mora dentro delas usa md. */
+  --radius-*: initial;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-full: 999px;
+
+  /* --- Profundidade ---------------------------------------------------- */
+  --shadow-*: initial;
+  --shadow-panel: inset 0 1px 0 0 rgb(var(--tint) / var(--alpha-2)), 0 22px 44px -24px rgb(0 0 0 / 0.7);
+  --shadow-float: inset 0 1px 0 0 rgb(var(--tint) / var(--alpha-3)), 0 32px 72px -26px rgb(0 0 0 / 0.85);
+  --shadow-control: inset 0 1px 0 0 rgb(var(--tint) / var(--alpha-2)), 0 6px 16px -10px rgb(0 0 0 / 0.6);
+
+  --blur-*: initial;
+  --blur-panel: 22px;
+  --blur-float: 36px;
+
+  /* --- Movimento ------------------------------------------------------- */
+  --ease-*: initial;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}

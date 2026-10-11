@@ -1,0 +1,21 @@
+node_modules/
+web/dist/
+
+# Dados financeiros locais: banco SQLite, WAL e backups nunca entram no Git.
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+backups/
+
+# Credenciais locais de desenvolvimento.
+.env
+.env.local
+
+.DS_Store
+*.log
+
+.claude/
+.design/

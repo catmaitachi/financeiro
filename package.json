@@ -1,0 +1,52 @@
+{
+  "name": "financeiro",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Gerenciador financeiro pessoal e local, integrado à Pluggy.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c auto \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node --watch-path=server --watch-path=shared server/src/main.ts",
+    "dev:web": "vite --config web/vite.config.ts",
+    "dev:mock": "concurrently -k -n pluggy,api,web -c auto \"npm:mock:pluggy\" \"npm:mock:api\" \"npm:dev:web\"",
+    "mock:pluggy": "node scripts/mock-pluggy.ts",
+    "mock:api": "node --watch-path=server --watch-path=shared server/src/main.ts --env-file=.env.mock",
+    "mock:seed": "node scripts/mock-seed.ts",
+    "build": "vite build --config web/vite.config.ts",
+    "start": "node server/src/main.ts",
+    "test": "node --test \"server/test/**/*.test.ts\"",
+    "typecheck": "tsc -p server/tsconfig.json && tsc -p web/tsconfig.json"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/hanken-grotesk": "^5.3.0",
+    "@hono/node-server": "^2.1.4",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tanstack/react-query": "^5.104.1",
+    "hono": "^4.13.13",
+    "liquid-glass-react": "^1.1.1",
+    "motion": "^14.0.0",
+    "ogl": "^1.0.11",
+    "pluggy-connect-sdk": "^2.14.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "^8.4.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}
