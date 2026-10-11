@@ -172,9 +172,9 @@ const FORECAST_TONE: Record<Direction, string> = {
 
 /**
  * O pregão. O "agora" fica a dois terços da largura, marcado por uma mira que
- * sobe e desce com o preço. No terço da direita aparecem duas previsões para o
- * próximo salto, uma de alta e uma de baixa; uma delas é sorteada, vira a vela
- * seguinte, e o gráfico anda uma casa para a esquerda.
+ * sobe e desce com o preço. Na casa seguinte aparecem duas velas-fantasma, uma
+ * previsão de alta e uma de baixa para o próximo salto; uma delas é sorteada,
+ * vira a vela de verdade, e o gráfico anda uma casa para a esquerda.
  */
 function CandleChart({ still, running }: { still: boolean; running: boolean }) {
   const opening = useMemo(session, [])
@@ -259,7 +259,6 @@ function CandleChart({ still, running }: { still: boolean; running: boolean }) {
     const y = (price: number) => 16 + ((scale.top - price) / (scale.top - scale.bottom)) * (chartHeight - 32)
     const x = (index: number) => now - (candles.length - 1 - index) * step
     const liveY = y(live.close)
-    const horizon = now + (width - now) * 0.78
     const slide = { duration: SLIDE, ease: ease.out }
     const grow = { duration: 0.6, ease: ease.out }
 
@@ -317,13 +316,12 @@ function CandleChart({ still, running }: { still: boolean; running: boolean }) {
           })}
         </AnimatePresence>
 
-        {/* As duas previsões para o próximo salto. No sorteio, a que perde some na hora e a que vence se demora. */}
+        {/* As duas previsões para o próximo salto: duas velas-fantasma na casa seguinte. No sorteio, a que perde some na hora e a que vence se demora. */}
         <AnimatePresence custom={picked}>
           {forecast
             ? (['up', 'down'] as const).map((direction) => {
                 const target = forecast[direction]
                 const targetY = y(target)
-                const far = y(Math.min(scale.top - 8, Math.max(scale.bottom + 8, live.close + (target - live.close) * 2.4)))
                 return (
                   <motion.g
                     key={`${forecast.id}-${direction}`}
@@ -341,16 +339,6 @@ function CandleChart({ still, running }: { still: boolean; running: boolean }) {
                     exit="exit"
                     className={FORECAST_TONE[direction]}
                   >
-                    <motion.path
-                      d={`M${now} ${liveY} L${now + step} ${targetY} L${horizon} ${far}`}
-                      fill="none"
-                      strokeWidth={1.5}
-                      strokeLinejoin="round"
-                      strokeOpacity={0.7}
-                      initial={still ? false : { pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.6, ease: ease.out }}
-                    />
                     <rect
                       x={now + step - body / 2}
                       y={Math.min(liveY, targetY)}
@@ -360,9 +348,6 @@ function CandleChart({ still, running }: { still: boolean; running: boolean }) {
                       fillOpacity={0.22}
                       strokeWidth={1}
                     />
-                    <text x={horizon + 8} y={far + 4} stroke="none" fontSize={12}>
-                      {direction === 'up' ? '▲' : '▼'}
-                    </text>
                   </motion.g>
                 )
               })
