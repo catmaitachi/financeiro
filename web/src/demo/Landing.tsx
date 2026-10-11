@@ -45,27 +45,40 @@ const inView = { initial: 'initial', whileInView: 'enter', viewport: { once: tru
 const HEADING = 'text-xl font-semibold text-balance text-text md:text-2xl'
 
 export function Landing() {
+  // O cabeçalho fica fora de cena enquanto a abertura ocupa a janela: lá, a marca e as ações já estão na própria dobra.
+  const [heroVisible, setHeroVisible] = useState(true)
+
   return (
     <div className="relative z-(--z-content) flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-(--z-nav) px-4 pt-4 md:px-6">
-        <LiquidBar className="mx-auto h-16 max-w-[1180px]">
-          <div className="flex w-full items-center justify-between gap-4 pr-3 pl-6">
-            <a href={import.meta.env.BASE_URL} className="font-display text-lg font-semibold text-text">
-              Financeiro
-            </a>
-            <nav className="flex items-center gap-2" aria-label="Atalhos">
-              <AnchorButton variant="ghost" href={REPOSITORY_URL} icon={<GithubLogoIcon />} className="max-sm:hidden">
-                Código
-              </AnchorButton>
-              <AnchorButton variant="primary" href={DEMO_URL}>
-                Abrir a demonstração
-              </AnchorButton>
-            </nav>
-          </div>
-        </LiquidBar>
-      </header>
+      <AnimatePresence>
+        {heroVisible ? null : (
+          <motion.header
+            key="header"
+            initial={{ opacity: 0, y: -24 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: duration.layout, ease: ease.out } }}
+            exit={{ opacity: 0, y: -16, transition: { duration: duration.state, ease: ease.inOut } }}
+            className="fixed inset-x-0 top-0 z-(--z-nav) px-4 pt-4 md:px-6"
+          >
+            <LiquidBar className="mx-auto h-16 max-w-[1180px]">
+              <div className="flex w-full items-center justify-between gap-4 pr-3 pl-6">
+                <a href={import.meta.env.BASE_URL} className="font-display text-lg font-semibold text-text">
+                  Financeiro
+                </a>
+                <nav className="flex items-center gap-2" aria-label="Atalhos">
+                  <AnchorButton variant="ghost" href={REPOSITORY_URL} icon={<GithubLogoIcon />} className="max-sm:hidden">
+                    Código
+                  </AnchorButton>
+                  <AnchorButton variant="primary" href={DEMO_URL}>
+                    Abrir a demonstração
+                  </AnchorButton>
+                </nav>
+              </div>
+            </LiquidBar>
+          </motion.header>
+        )}
+      </AnimatePresence>
 
-      <MarketHero />
+      <MarketHero onVisibilityChange={setHeroVisible} />
 
       <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 md:px-6">
         <ProductReveal />
