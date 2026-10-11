@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { duration, ease, itemVariants, staggerVariants } from '@/design/motion'
 import { DEMO_APP_BASE, REPOSITORY_URL } from '@/lib/demo'
 import { AnchorButton } from '@/ui/Button'
+import { Wordmark } from './Wordmark'
 
 const DEMO_URL = `${DEMO_APP_BASE}/`
 
@@ -117,9 +118,9 @@ export function MarketHero({ onVisibilityChange }: MarketHeroProps) {
       >
         <motion.h1
           variants={itemVariants}
-          className="max-w-[22ch] text-2xl font-semibold tracking-[-0.03em] text-balance text-text lg:text-display"
+          className="max-w-[16ch] font-title text-[2.75rem] leading-[1] font-extrabold tracking-[-0.04em] [word-spacing:0.08em] text-balance text-text md:text-display lg:text-title"
         >
-          O seu painel financeiro
+          <Wordmark animated={!still} />
         </motion.h1>
         <motion.p variants={itemVariants} className="mt-6 max-w-[52ch] text-md text-balance text-text-2">
           Contas e cartões chegam pelo Open Finance para um painel que roda só na sua máquina, com cada compra no mês da

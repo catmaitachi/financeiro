@@ -40,6 +40,7 @@ Não escreva `rgba(...)` nem `/50` em componentes. Se faltar um degrau, o proble
 
 - **Hanken Grotesk** para interface, texto e todos os números.
 - **Bricolage Grotesque** só em títulos (`h1`, `h2`, `h3`) e na marca.
+- **Archivo**, em peso 800, só no título da página de apresentação e na sua repetição no cabeçalho dela (`font-title`). Não entra no aplicativo.
 
 | Token | Tamanho | Uso |
 |---|---|---|
@@ -51,7 +52,8 @@ Não escreva `rgba(...)` nem `/50` em componentes. Se faltar um degrau, o proble
 | `text-xl` | 28 | Valor em destaque dentro de painéis |
 | `text-2xl` | 40 | Título de página |
 | `text-hero` | 56 | O número principal da tela. Um por tela |
-| `text-display` | 72 | O título da página de apresentação, só em telas largas |
+| `text-display` | 72 | O título da página de apresentação em telas médias |
+| `text-title` | 96 | O título da página de apresentação em telas largas |
 
 Pesos: 400 texto, 500 rótulos e controles, 600 títulos e valores. O número principal usa a mesma grotesca do resto, com algarismos proporcionais. `tabular` (algarismos de largura fixa) só em colunas que precisam alinhar.
 
@@ -171,7 +173,7 @@ O banco é a divisão principal do produto. O nome é padronizado em `shared/ban
 
 A demonstração pública (`npm run demo:dev`, `web/src/demo/`) abre com uma página que apresenta o projeto e leva ao aplicativo navegável. Ela mora no mesmo mundo do produto: o mesmo chão de mercado, as mesmas superfícies, os mesmos tokens.
 
-- A abertura lê o dinheiro como um pregão (`MarketHero`): título, uma frase e as duas ações, centralizados sobre o chão, em `text-display` (`text-2xl` em telas estreitas). Abaixo, um gráfico de velas de ponta a ponta da janela e uma fita de cotações com o que o aplicativo acompanha. A abertura não tem barra nem marca: o nome aparece no cabeçalho, que só entra depois.
+- A abertura lê o dinheiro como um pregão (`MarketHero`): título, uma frase e as duas ações, centralizados sobre o chão. O título é o `Wordmark`: Archivo 800 em `text-title` (96, caindo para 72 e 44 em telas menores), com o "a" de "financeiro" trocado pelo triângulo verde de alta, na altura do "x". Abaixo, um gráfico de velas de ponta a ponta da janela e uma fita de cotações com o que o aplicativo acompanha. A abertura não tem barra nem marca: o nome aparece no cabeçalho, que só entra depois.
 - Verde e vermelho seguem a regra do produto também aqui: vela de alta e `▲` em `market-up`, vela de baixa e `▼` em `market-down`. O pregão é cenário (gerado com semente, igual a cada visita); os valores da fita são os da demonstração.
 - A prova é o produto: capturas reais das telas em molduras `surface`, e o campo de previsão funcionando com o analisador de verdade. Nada de ilustração no lugar de conteúdo.
 - Cada seção tem um desenho próprio: texto empilhado, visita presa na janela, campo interativo largo, ladrilhos de tamanhos diferentes, texto ao lado do terminal. Nenhum se repete, e nenhuma seção leva rótulo acima do título.

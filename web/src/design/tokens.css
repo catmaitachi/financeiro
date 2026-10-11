@@ -110,6 +110,8 @@
   /* --- Tipografia ------------------------------------------------------ */
   --font-sans: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Bricolage Grotesque Variable', 'Hanken Grotesk Variable', ui-sans-serif, sans-serif;
+  /* Só o título da página de apresentação (o arquivo da fonte é carregado por `demo/Wordmark.tsx`). */
+  --font-title: 'Archivo Variable', 'Hanken Grotesk Variable', ui-sans-serif, sans-serif;
 
   --text-*: initial;
   --text-xs: 0.75rem;
@@ -128,9 +130,11 @@
   --text-2xl--line-height: 2.75rem;
   --text-hero: 3.5rem;
   --text-hero--line-height: 3.75rem;
-  /* Só o título da página de apresentação, em telas largas. */
+  /* Só o título da página de apresentação: `display` em telas médias, `title` nas largas. */
   --text-display: 4.5rem;
   --text-display--line-height: 4.5rem;
+  --text-title: 6rem;
+  --text-title--line-height: 5.75rem;
 
   /* --- Forma ----------------------------------------------------------- */
   /* Controles são pílulas; superfícies usam lg; o que mora dentro delas usa md. */

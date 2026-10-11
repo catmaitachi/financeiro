@@ -34,6 +34,7 @@ import dashboardShot from '../../../docs/tela-painel.png'
 import forecastsShot from '../../../docs/tela-previsoes.png'
 import transactionsShot from '../../../docs/tela-transacoes.png'
 import { MarketHero } from './MarketHero'
+import { Wordmark } from './Wordmark'
 
 const DEMO_URL = `${DEMO_APP_BASE}/`
 
@@ -61,8 +62,8 @@ export function Landing() {
           >
             <LiquidBar className="mx-auto h-16 max-w-[1180px]">
               <div className="flex w-full min-w-0 items-center justify-between gap-4 pr-3 pl-5 sm:pl-6">
-                <a href={import.meta.env.BASE_URL} className="truncate font-display text-md font-semibold text-text sm:text-lg">
-                  O seu painel financeiro
+                <a href={import.meta.env.BASE_URL} className="truncate font-title text-md font-extrabold tracking-[-0.02em] [word-spacing:0.08em] text-text sm:text-lg">
+                  <Wordmark />
                 </a>
                 <nav className="flex items-center gap-2" aria-label="Atalhos">
                   <AnchorButton variant="ghost" href={REPOSITORY_URL} icon={<GithubLogoIcon />} className="max-sm:hidden">
