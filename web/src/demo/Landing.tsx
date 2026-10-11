@@ -1,8 +1,26 @@
-import { ArrowRightIcon, CheckIcon, CopyIcon, GithubLogoIcon } from '@phosphor-icons/react'
-import { AnimatePresence, motion, type Variants } from 'motion/react'
-import { useEffect, useState, type ReactNode } from 'react'
+import {
+  AppleLogoIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  CopyIcon,
+  GithubLogoIcon,
+  LinuxLogoIcon,
+  WindowsLogoIcon,
+} from '@phosphor-icons/react'
+import {
+  AnimatePresence,
+  motion,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+  type MotionValue,
+} from 'motion/react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import type { BankRef } from '@shared/banks'
 import { ForecastExpressionError, parseForecastExpression } from '@shared/forecast-expression'
-import { duration, ease, itemVariants, staggerVariants, swapVariants } from '@/design/motion'
+import { collapseVariants, duration, ease, itemVariants, staggerVariants, swapVariants } from '@/design/motion'
+import { BankLogo } from '@/features/banks/BankLogo'
 import { describePlan } from '@/features/forecasts/ForecastComposer'
 import { cn } from '@/lib/cn'
 import { DEMO_APP_BASE, REPOSITORY_URL } from '@/lib/demo'
@@ -18,42 +36,12 @@ import transactionsShot from '../../../docs/tela-transacoes.png'
 
 const DEMO_URL = `${DEMO_APP_BASE}/`
 
-/** A única entrada com coreografia própria: a tela do produto se revela de cima para baixo. */
-const revealVariants: Variants = {
-  initial: { opacity: 0, y: 24, clipPath: 'inset(0 0 100% 0 round 22px)' },
-  enter: {
-    opacity: 1,
-    y: 0,
-    clipPath: 'inset(0 0 0% 0 round 22px)',
-    transition: { duration: duration.entrance, ease: ease.out, delay: 0.12 },
-  },
-}
-
 const INSTALL = ['git clone https://github.com/catmaitachi/financeiro.git', 'cd financeiro', 'npm install', 'npm run dev']
 
-const FACTS: [term: string, detail: string][] = [
-  [
-    'Nada sai da sua máquina',
-    'Os dados ficam num banco SQLite local e o servidor só escuta em 127.0.0.1. Sem login, sem hospedagem, sem conta para criar.',
-  ],
-  [
-    'Open Finance sem mensalidade',
-    'O caminho padrão é o MeuPluggy, que dá acesso gratuito aos dados dos seus próprios bancos.',
-  ],
-  [
-    'Chaves no cofre do sistema',
-    'As credenciais da Pluggy vão para o Keychain no macOS, para a DPAPI no Windows e para o chaveiro no Linux. O navegador nunca as recebe de volta.',
-  ],
-  [
-    'Seus agentes também leem',
-    'Um servidor MCP embutido entrega os dados a agentes como o Claude, com token e somente leitura até você liberar a escrita.',
-  ],
-  [
-    'Um comando para rodar',
-    'Node.js 24 e nada para compilar. Nasceu no macOS; no Windows e no Linux o cofre é próprio e ainda tem pouca estrada.',
-  ],
-  ['Código aberto', 'Licença MIT. Leia, mude e rode do seu jeito.'],
-]
+/** Entrada de seção ao chegar na janela: uma vez, um pouco antes de a seção ficar inteira à vista. */
+const inView = { initial: 'initial', whileInView: 'enter', viewport: { once: true, margin: '-80px' } } as const
+
+const HEADING = 'text-xl font-semibold text-balance text-text md:text-2xl'
 
 export function Landing() {
   return (
@@ -77,145 +65,49 @@ export function Landing() {
       </header>
 
       <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 md:px-6">
-        <section className="pt-12 md:pt-16">
-          <motion.div variants={staggerVariants} initial="initial" animate="enter" className="flex flex-col items-start">
-            <motion.h1
-              variants={itemVariants}
-              className="max-w-[26ch] text-2xl font-semibold tracking-[-0.03em] text-balance text-text lg:text-display"
-            >
-              Seu dinheiro, num painel que roda só na sua máquina.
-            </motion.h1>
-            <motion.p variants={itemVariants} className="mt-6 max-w-[56ch] text-md text-text-2">
-              O Financeiro junta as contas e os cartões dos seus bancos pelo Open Finance, conta cada compra no mês da
-              fatura e dá baixa sozinho no que você previu receber ou pagar.
-            </motion.p>
-            <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center gap-3">
-              <AnchorButton variant="primary" href={DEMO_URL} icon={<ArrowRightIcon />} className="flex-row-reverse">
-                Abrir a demonstração
-              </AnchorButton>
-              <AnchorButton href={REPOSITORY_URL} icon={<GithubLogoIcon />}>
-                Ver o código no GitHub
-              </AnchorButton>
-            </motion.div>
-            <motion.p variants={itemVariants} className="mt-4 max-w-[56ch] text-sm text-text-3">
-              A demonstração é o aplicativo de verdade rodando inteiro no seu navegador, com bancos e lançamentos
-              fictícios. Nada é enviado a servidor nenhum.
-            </motion.p>
-          </motion.div>
+        <Hero />
 
-          <motion.a
-            href={DEMO_URL}
-            variants={revealVariants}
-            initial="initial"
-            animate="enter"
-            aria-label="Abrir a demonstração no Painel"
-            className="group surface mt-12 block overflow-hidden rounded-lg p-2"
-          >
-            <img
-              src={dashboardShot}
-              width={1920}
-              height={1200}
-              alt="Painel do Financeiro: faturas do mês por banco, previsão de entradas, últimas transações e saldo em contas"
-              className="w-full rounded-md transition-transform duration-(--dur-layout) ease-out group-hover:scale-[1.01]"
-            />
-          </motion.a>
-
-          <motion.div
-            variants={staggerVariants}
-            initial="initial"
-            whileInView="enter"
-            viewport={{ once: true, margin: '-80px' }}
-            className="mt-8 grid gap-x-12 gap-y-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
-          >
-            <motion.h2 variants={itemVariants} className="max-w-[18ch] text-xl font-semibold text-balance text-text md:text-2xl">
-              Cada compra no mês da fatura
-            </motion.h2>
-            <motion.div variants={itemVariants} className="flex max-w-[62ch] flex-col gap-3 text-base text-text-2">
-              <p>
-                O Painel mostra quanto falta pagar de fatura, quanto está previsto para entrar e se uma coisa cobre a
-                outra. Cada banco traz a fatura atual, se já foi paga ou quando vence, e o que já caiu na fatura seguinte.
-              </p>
-              <p>Abaixo ficam as últimas transações e o saldo em contas depois das faturas a pagar.</p>
-            </motion.div>
-          </motion.div>
-        </section>
-
-        <Tour
-          title="Todos os bancos numa linha do tempo"
-          image={transactionsShot}
-          alt="Lista de transações agrupada por dia, com busca e filtros por banco, período e categoria"
-          flip
-        >
-          <p>
-            As transações de todos os bancos ficam juntas, da mais recente para a mais antiga, com filtro por banco,
-            período, categoria e direção.
-          </p>
-          <p>
-            Pagamentos de fatura e transferências entre as suas próprias contas ficam fora dos totais, para o mesmo
-            dinheiro não entrar duas vezes.
-          </p>
-        </Tour>
-
-        <Tour
-          title="Previsão que se escreve como uma conta"
-          image={forecastsShot}
-          alt="Tela de previsões com saldo previsto, formulário de nova previsão e a lista de entradas por mês"
-        >
-          <p>
-            Uma previsão é uma expressão curta. Quando o dinheiro chega ao banco, o Financeiro dá a baixa sozinho, e o
-            que for ambíguo vai para uma fila de revisão.
-          </p>
-          <ExpressionPlayground />
-        </Tour>
-
-        <Tour
-          title="Cada banco, e o que ele pede de você"
-          image={connectionsShot}
-          alt="Tela de conexões com os bancos conectados, o estado de cada sincronização e os ajustes de acesso"
-          flip
-        >
-          <p>
-            Em Conexões você vê cada banco, quando foi a última sincronização e o que precisa da sua atenção, como uma
-            conexão aguardando confirmação.
-          </p>
-        </Tour>
-
-        <motion.section
-          variants={staggerVariants}
-          initial="initial"
-          whileInView="enter"
-          viewport={{ once: true, margin: '-80px' }}
-          className="mt-24 md:mt-32"
-        >
-          <motion.h2 variants={itemVariants} className="max-w-[20ch] text-xl font-semibold text-balance text-text md:text-2xl">
-            Feito para ficar com você
+        <motion.section variants={staggerVariants} {...inView} className="mt-16 flex max-w-[62ch] flex-col gap-4 md:mt-24">
+          <motion.h2 variants={itemVariants} className={HEADING}>
+            Cada compra no mês da fatura
           </motion.h2>
-          <dl className="mt-8 border-t border-edge">
-            {FACTS.map(([term, detail]) => (
-              <motion.div
-                key={term}
-                variants={itemVariants}
-                className="grid gap-x-8 gap-y-1 border-b border-edge py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:py-6"
-              >
-                <dt className="text-md font-medium text-text">{term}</dt>
-                <dd className="max-w-[62ch] text-base text-text-2">{detail}</dd>
-              </motion.div>
-            ))}
-          </dl>
+          <motion.p variants={itemVariants} className="text-md text-text-2">
+            O Painel mostra quanto falta pagar de fatura, quanto está previsto para entrar e se uma coisa cobre a outra,
+            banco por banco.
+          </motion.p>
+          <motion.p variants={itemVariants} className="text-base text-text-3">
+            A demonstração é o aplicativo de verdade rodando inteiro no seu navegador, com bancos e lançamentos
+            fictícios. Nada é enviado a servidor nenhum.
+          </motion.p>
         </motion.section>
 
+        <ScreenTour />
+
+        <motion.section variants={staggerVariants} {...inView} className="mt-24 md:mt-32">
+          <motion.h2 variants={itemVariants} className={cn(HEADING, 'max-w-[22ch]')}>
+            Previsão que se escreve como uma conta
+          </motion.h2>
+          <motion.p variants={itemVariants} className="mt-4 max-w-[56ch] text-md text-text-2">
+            Este é o campo do aplicativo, com o analisador de verdade. Quando o dinheiro chega ao banco, a baixa é
+            automática.
+          </motion.p>
+          <motion.div variants={itemVariants} className="mt-8">
+            <ExpressionPlayground />
+          </motion.div>
+        </motion.section>
+
+        <Facts />
+
         <motion.section
           variants={staggerVariants}
-          initial="initial"
-          whileInView="enter"
-          viewport={{ once: true, margin: '-80px' }}
+          {...inView}
           className="mt-24 grid items-start gap-x-12 gap-y-8 md:mt-32 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
         >
           <motion.div variants={itemVariants} className="flex min-w-0 flex-col items-start gap-4">
-            <h2 className="text-xl font-semibold text-balance text-text md:text-2xl">Rode com os seus bancos</h2>
+            <h2 className={HEADING}>Rode com os seus bancos</h2>
             <p className="max-w-[48ch] text-base text-text-2">
-              Você precisa do Node.js 24 ou mais novo. No primeiro acesso, o aplicativo pede as chaves da sua Application
-              na Pluggy e testa o par antes de guardar.
+              No primeiro acesso, o aplicativo pede as chaves da sua Application na Pluggy e testa o par antes de
+              guardar.
             </p>
             <AnchorButton href={`${REPOSITORY_URL}#começar`} icon={<ArrowRightIcon />} className="flex-row-reverse">
               Guia completo no README
@@ -249,40 +141,299 @@ export function Landing() {
   )
 }
 
-interface TourProps {
-  title: string
-  image: string
-  alt: string
-  /** Texto à direita, tela à esquerda. */
-  flip?: boolean
-  children: ReactNode
+/**
+ * A primeira dobra. A tela do produto chega deitada, como um papel sobre a
+ * mesa, e se levanta conforme a página rola: é a rolagem que traz o produto
+ * para a frente do leitor.
+ */
+function Hero() {
+  const frame = useRef<HTMLDivElement>(null)
+  const still = useReducedMotion()
+  const { scrollYProgress } = useScroll({ target: frame, offset: ['start end', 'start 0.2'] })
+  const rotateX = useTransform(scrollYProgress, [0, 1], [26, 0])
+  const scale = useTransform(scrollYProgress, [0, 1], [0.9, 1])
+  const lift = useTransform(scrollYProgress, [0, 1], [48, 0])
+
+  return (
+    <section className="pt-12 md:pt-16">
+      <motion.div variants={staggerVariants} initial="initial" animate="enter" className="flex flex-col items-start">
+        <motion.h1
+          variants={itemVariants}
+          className="max-w-[26ch] text-2xl font-semibold tracking-[-0.03em] text-balance text-text lg:text-display"
+        >
+          Seu dinheiro, num painel que roda só na sua máquina.
+        </motion.h1>
+        <motion.p variants={itemVariants} className="mt-6 max-w-[52ch] text-md text-text-2">
+          Contas e cartões chegam pelo Open Finance. Cada compra cai no mês da fatura, e as previsões recebem baixa
+          sozinhas.
+        </motion.p>
+        <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center gap-3">
+          <AnchorButton variant="primary" href={DEMO_URL} icon={<ArrowRightIcon />} className="flex-row-reverse">
+            Abrir a demonstração
+          </AnchorButton>
+          <AnchorButton href={REPOSITORY_URL} icon={<GithubLogoIcon />}>
+            Ver o código no GitHub
+          </AnchorButton>
+        </motion.div>
+      </motion.div>
+
+      <div ref={frame} className="mt-12 [perspective:1600px]">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: duration.entrance, ease: ease.out, delay: 0.12 }}
+          style={still ? undefined : { rotateX, scale, y: lift, transformOrigin: '50% 0%' }}
+        >
+          <a
+            href={DEMO_URL}
+            aria-label="Abrir a demonstração no Painel"
+            className="group surface block overflow-hidden rounded-lg p-2"
+          >
+            <img
+              src={dashboardShot}
+              width={1920}
+              height={1200}
+              alt="Painel do Financeiro: faturas do mês por banco, previsão de entradas, últimas transações e saldo em contas"
+              className="w-full rounded-md transition-transform duration-(--dur-layout) ease-out group-hover:scale-[1.01]"
+            />
+          </a>
+        </motion.div>
+      </div>
+    </section>
+  )
 }
 
-/** Uma parada da visita: o que a tela faz, ao lado da própria tela. */
-function Tour({ title, image, alt, flip = false, children }: TourProps) {
+const SCREENS = [
+  {
+    title: 'Todos os bancos numa linha do tempo',
+    body: 'Filtro por banco, período, categoria e direção. Pagamento de fatura e transferência entre as suas contas ficam fora dos totais.',
+    image: transactionsShot,
+    alt: 'Lista de transações agrupada por dia, com busca e filtros por banco, período e categoria',
+  },
+  {
+    title: 'O que ainda vai entrar e sair',
+    body: 'Saldo previsto, a receber e a pagar, mês a mês. O que for ambíguo vai para uma fila de revisão, em vez de ser adivinhado.',
+    image: forecastsShot,
+    alt: 'Tela de previsões com saldo previsto, formulário de nova previsão e a lista de entradas por mês',
+  },
+  {
+    title: 'Cada banco, e o que ele pede de você',
+    body: 'A última sincronização de cada conexão e o que precisa da sua atenção, como um banco aguardando confirmação.',
+    image: connectionsShot,
+    alt: 'Tela de conexões com os bancos conectados, o estado de cada sincronização e os ajustes de acesso',
+  },
+]
+
+/** Quanto de rolagem cada tela ocupa enquanto a visita está presa na janela. */
+const SCREEN_SCROLL_VH = 70
+
+/**
+ * A visita pelas telas. Em telas largas a seção prende na janela e a rolagem
+ * troca a tela mostrada, com o texto de cada parada ao lado; em telas
+ * estreitas vira uma sequência simples, sem prender nada.
+ */
+function ScreenTour() {
+  const track = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(0)
+  const { scrollYProgress } = useScroll({ target: track, offset: ['start start', 'end end'] })
+
+  // O índice só muda ao cruzar uma parada: o React não re-renderiza a cada quadro de rolagem.
+  useMotionValueEvent(scrollYProgress, 'change', (progress) => {
+    const next = Math.min(SCREENS.length - 1, Math.max(0, Math.floor(progress * SCREENS.length)))
+    setActive((current) => (current === next ? current : next))
+  })
+
+  const goTo = (index: number) => {
+    const element = track.current
+    if (!element) return
+    const top = element.getBoundingClientRect().top + window.scrollY
+    const travel = element.offsetHeight - window.innerHeight
+    // Um pouco para dentro da parada, para o índice não ficar na fronteira.
+    window.scrollTo({ top: top + (travel * (index + 0.1)) / SCREENS.length, behavior: 'smooth' })
+  }
+
   return (
-    <motion.section
-      variants={staggerVariants}
-      initial="initial"
-      whileInView="enter"
-      viewport={{ once: true, margin: '-80px' }}
-      className="mt-24 grid items-center gap-x-12 gap-y-8 md:mt-32 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
-    >
-      <motion.div variants={itemVariants} className={cn('flex min-w-0 flex-col gap-4', flip && 'lg:order-2')}>
-        <h2 className="max-w-[18ch] text-xl font-semibold text-balance text-text md:text-2xl">{title}</h2>
-        <div className="flex max-w-[48ch] flex-col gap-3 text-base text-text-2">{children}</div>
-      </motion.div>
-      <motion.div variants={itemVariants} className="surface min-w-0 overflow-hidden rounded-lg p-2">
-        <img
-          src={image}
-          alt={alt}
-          loading="lazy"
-          width={1920}
-          height={1200}
-          className="aspect-[16/11] w-full rounded-md object-cover object-top"
-        />
-      </motion.div>
+    <>
+      <section
+        ref={track}
+        className="relative mt-24 hidden lg:block"
+        style={{ height: `calc(100dvh + ${SCREENS.length * SCREEN_SCROLL_VH}vh)` }}
+        aria-label="Visita pelas telas"
+      >
+        <div className="sticky top-0 grid h-dvh grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-center gap-12 pt-20">
+          <ol className="flex flex-col">
+            {SCREENS.map((screen, index) => (
+              <TourStop
+                key={screen.title}
+                title={screen.title}
+                body={screen.body}
+                open={index === active}
+                progress={scrollYProgress}
+                range={[index / SCREENS.length, (index + 1) / SCREENS.length]}
+                onSelect={() => goTo(index)}
+              />
+            ))}
+          </ol>
+          <div className="surface relative aspect-[16/10] overflow-hidden rounded-lg">
+            {SCREENS.map((screen, index) => (
+              <motion.img
+                key={screen.image}
+                src={screen.image}
+                alt={screen.alt}
+                aria-hidden={index !== active}
+                initial={false}
+                animate={{ opacity: index === active ? 1 : 0, scale: index === active ? 1 : 1.03 }}
+                transition={{ duration: duration.layout, ease: ease.out }}
+                className="absolute inset-2 size-[calc(100%-16px)] rounded-md object-cover object-top"
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-16 flex flex-col gap-16 lg:hidden">
+        {SCREENS.map((screen) => (
+          <motion.section key={screen.title} variants={staggerVariants} {...inView} className="flex flex-col gap-4">
+            <motion.h2 variants={itemVariants} className={HEADING}>
+              {screen.title}
+            </motion.h2>
+            <motion.p variants={itemVariants} className="max-w-[56ch] text-base text-text-2">
+              {screen.body}
+            </motion.p>
+            <motion.div variants={itemVariants} className="surface overflow-hidden rounded-lg p-2">
+              <img
+                src={screen.image}
+                alt={screen.alt}
+                loading="lazy"
+                width={1920}
+                height={1200}
+                className="aspect-[16/11] w-full rounded-md object-cover object-top"
+              />
+            </motion.div>
+          </motion.section>
+        ))}
+      </div>
+    </>
+  )
+}
+
+interface TourStopProps {
+  title: string
+  body: string
+  open: boolean
+  progress: MotionValue<number>
+  /** O trecho da rolagem que pertence a esta parada. */
+  range: [number, number]
+  onSelect: () => void
+}
+
+/** Uma parada da visita: o título sempre à vista, o texto só na parada atual, e um fio que enche com a rolagem. */
+function TourStop({ title, body, open, progress, range, onSelect }: TourStopProps) {
+  const fill = useTransform(progress, range, [0, 1], { clamp: true })
+
+  return (
+    <li className="relative border-t border-edge py-6">
+      <motion.span aria-hidden className="absolute inset-x-0 -top-px h-px origin-left bg-text" style={{ scaleX: fill }} />
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={open ? 'step' : undefined}
+        className={cn('block w-full rounded-sm text-left font-display text-xl font-semibold', open ? 'text-text' : 'text-text-off hover:text-text-2')}
+      >
+        {title}
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.p
+            key="body"
+            variants={collapseVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
+            className="max-w-[44ch] overflow-hidden text-base text-text-2"
+          >
+            <span className="block pt-3">{body}</span>
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
+    </li>
+  )
+}
+
+const BANKS: BankRef[] = [
+  { id: 'nubank', name: 'Nubank' },
+  { id: 'inter', name: 'Inter' },
+  { id: 'picpay', name: 'PicPay' },
+]
+
+const VAULTS = [
+  { icon: <AppleLogoIcon size={20} />, system: 'macOS', vault: 'Keychain' },
+  { icon: <WindowsLogoIcon size={20} />, system: 'Windows', vault: 'DPAPI' },
+  { icon: <LinuxLogoIcon size={20} />, system: 'Linux', vault: 'Chaveiro' },
+]
+
+const AGENT_TOOLS = ['resumo_do_mes', 'listar_transacoes', 'listar_previsoes', 'fila_de_conciliacao']
+
+/** O que o projeto garante, em ladrilhos de tamanhos diferentes: cada um mostra a própria prova. */
+function Facts() {
+  return (
+    <motion.section variants={staggerVariants} {...inView} className="mt-24 md:mt-32">
+      <motion.h2 variants={itemVariants} className={HEADING}>
+        Feito para ficar com você
+      </motion.h2>
+      <div className="mt-8 grid gap-6 lg:grid-cols-12">
+        <Fact className="lg:col-span-7" title="Nada sai da sua máquina" detail="Banco SQLite local, sem login e sem hospedagem. O servidor só atende o seu próprio computador.">
+          <p className="font-display text-2xl font-semibold tracking-[-0.03em] text-text-off md:text-hero" aria-hidden>
+            127.0.0.1
+          </p>
+        </Fact>
+        <Fact className="lg:col-span-5" title="Open Finance sem mensalidade" detail="Pelo MeuPluggy, o acesso aos dados dos seus próprios bancos é gratuito.">
+          <ul className="flex gap-3" aria-label="Bancos com selo próprio no aplicativo">
+            {BANKS.map((bank) => (
+              <li key={bank.id} title={bank.name}>
+                <BankLogo bank={bank} size="lg" />
+                <span className="sr-only">{bank.name}</span>
+              </li>
+            ))}
+          </ul>
+        </Fact>
+        <Fact className="lg:col-span-5" title="Chaves no cofre do sistema" detail="As credenciais da Pluggy nunca voltam para o navegador.">
+          <ul className="flex flex-col gap-2">
+            {VAULTS.map(({ icon, system, vault }) => (
+              <li key={system} className="flex items-center gap-3 text-base text-text-2">
+                <span className="text-text">{icon}</span>
+                {system}
+                <span className="ml-auto text-text-3">{vault}</span>
+              </li>
+            ))}
+          </ul>
+        </Fact>
+        <Fact className="lg:col-span-7" title="Seus agentes também leem" detail="Um servidor MCP embutido, com token, e somente leitura até você liberar a escrita.">
+          <ul className="flex flex-wrap gap-2">
+            {AGENT_TOOLS.map((tool) => (
+              <li key={tool} className="surface-sunken rounded-full px-3 py-1 font-mono text-sm text-text-2">
+                {tool}
+              </li>
+            ))}
+          </ul>
+        </Fact>
+      </div>
+      <motion.p variants={itemVariants} className="mt-6 max-w-[62ch] text-sm text-text-3">
+        Código aberto, licença MIT. Nasceu no macOS; no Windows e no Linux o cofre é próprio e ainda tem pouca estrada.
+      </motion.p>
     </motion.section>
+  )
+}
+
+function Fact({ title, detail, className, children }: { title: string; detail: string; className?: string; children: ReactNode }) {
+  return (
+    <motion.article variants={itemVariants} className={cn('surface flex min-h-56 flex-col justify-between gap-8 rounded-lg p-6', className)}>
+      {children}
+      <div>
+        <h3 className="text-lg font-semibold text-text">{title}</h3>
+        <p className="mt-1 max-w-[48ch] text-base text-text-2">{detail}</p>
+      </div>
+    </motion.article>
   )
 }
 
@@ -302,25 +453,27 @@ function ExpressionPlayground() {
   }
 
   return (
-    <div className="mt-1 flex flex-col gap-3">
-      <TextField
-        label="Experimente uma previsão"
-        typed
-        inputMode="text"
-        autoComplete="off"
-        spellCheck={false}
-        value={expression}
-        onChange={(event) => setExpression(event.target.value)}
-        error={problem ?? undefined}
-      />
-      <div className="flex flex-wrap gap-2">
-        {EXAMPLES.map((example) => (
-          <Button key={example} size="sm" aria-pressed={expression === example} onClick={() => setExpression(example)}>
-            {example}
-          </Button>
-        ))}
+    <div className="surface grid gap-x-12 gap-y-6 rounded-lg p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:p-8">
+      <div className="flex min-w-0 flex-col gap-3">
+        <TextField
+          label="Experimente uma previsão"
+          typed
+          inputMode="text"
+          autoComplete="off"
+          spellCheck={false}
+          value={expression}
+          onChange={(event) => setExpression(event.target.value)}
+          error={problem ?? undefined}
+        />
+        <div className="flex flex-wrap gap-2">
+          {EXAMPLES.map((example) => (
+            <Button key={example} size="sm" aria-pressed={expression === example} onClick={() => setExpression(example)}>
+              {example}
+            </Button>
+          ))}
+        </div>
       </div>
-      <div className="surface-sunken min-h-16 rounded-md px-4 py-3" aria-live="polite">
+      <div className="min-h-24 min-w-0" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
           <motion.p
             key={preview ?? 'vazio'}
@@ -328,7 +481,7 @@ function ExpressionPlayground() {
             initial="initial"
             animate="enter"
             exit="exit"
-            className={preview ? 'text-base text-text' : 'text-base text-text-3'}
+            className={cn('max-w-[30ch] font-display text-xl font-semibold text-balance', preview ? 'text-text' : 'text-text-off')}
           >
             {preview ?? 'Digite um valor para ver o que seria criado.'}
           </motion.p>
