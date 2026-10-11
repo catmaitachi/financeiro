@@ -1,8 +1,7 @@
 <div align="center">
 
-<img src="docs/tela-painel.png" alt="Painel do Financeiro: faturas do mês, previsão de entradas, últimas transações e saldo em contas" width="860">
+<img src="docs/hero.gif" alt="O seu painel financeiro, com o u de seu virando o triângulo vermelho de baixa e o a de financeiro, o verde de alta, sobre um pregão de velas que se move" width="860">
 
-<br>
 <br>
 
 <img src="https://img.shields.io/badge/100%25-local-34d17b?style=flat-square&labelColor=120d0a" alt="100% local">
@@ -18,15 +17,6 @@
 </div>
 
 <br>
-
-<div align="center">
-
-# Painel Financeiro
-
-Seu dinheiro, num painel que roda só na sua máquina.<br>
-Contas e cartões chegam pelo Open Finance e os dados ficam num banco local, na sua máquina.
-
-</div>
 
 O Financeiro junta as contas e os cartões dos seus bancos pela [Pluggy](https://pluggy.ai) e conta cada gasto de cartão no mês da fatura. Dá para pesquisar qualquer lançamento, e o que ainda vai entrar e sair fica numa previsão que recebe baixa sozinha quando o dinheiro aparece.
 
