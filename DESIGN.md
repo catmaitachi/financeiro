@@ -171,13 +171,16 @@ O banco é a divisão principal do produto. O nome é padronizado em `shared/ban
 
 A demonstração pública (`npm run demo:dev`, `web/src/demo/`) abre com uma página que apresenta o projeto e leva ao aplicativo navegável. Ela mora no mesmo mundo do produto: o mesmo chão de mercado, as mesmas superfícies, os mesmos tokens.
 
-- O título fica solto sobre o chão, alinhado à esquerda, em `text-display` (`text-2xl` em telas estreitas). É o único lugar que usa esse tamanho. A primeira dobra tem só título, uma frase, as duas ações e a tela do produto.
+- A abertura lê o dinheiro como um pregão (`MarketHero`): título solto sobre o chão, alinhado à esquerda, em `text-display` (`text-2xl` em telas estreitas), uma frase e as duas ações. Abaixo, um gráfico de velas de ponta a ponta da janela e uma fita de cotações com o que o aplicativo acompanha.
+- Verde e vermelho seguem a regra do produto também aqui: vela de alta e `▲` em `market-up`, vela de baixa e `▼` em `market-down`. O pregão é cenário (gerado com semente, igual a cada visita); os valores da fita são os da demonstração.
 - A prova é o produto: capturas reais das telas em molduras `surface`, e o campo de previsão funcionando com o analisador de verdade. Nada de ilustração no lugar de conteúdo.
 - Cada seção tem um desenho próprio: texto empilhado, visita presa na janela, campo interativo largo, ladrilhos de tamanhos diferentes, texto ao lado do terminal. Nenhum se repete, e nenhuma seção leva rótulo acima do título.
 - Uma ação principal por dobra, sempre com o mesmo rótulo: abrir a demonstração. O código no GitHub é a secundária.
 
 A rolagem conta a história, e cada movimento tem um motivo:
 
+- **O pregão abre.** As velas crescem em sequência ao carregar e a média móvel se traça por cima. A última vela e a linha tracejada do preço continuam oscilando, como um mercado aberto. Ao rolar, o texto sobe mais rápido que o gráfico, que recua e esmaece.
+- **A fita passa** devagar e para sob o ponteiro. É a única faixa rolante da página.
 - **A tela se levanta.** A captura do Painel chega deitada (`rotateX` de 26°) e fica de pé conforme sobe na janela: a rolagem traz o produto para a frente.
 - **A visita prende na janela** (só a partir de 1024 px). A seção fica fixa enquanto a rolagem troca a tela mostrada; o fio acima de cada parada enche com o avanço e os títulos também são botões. Em telas estreitas vira uma sequência simples.
 - **As demais seções chegam** com `staggerVariants` e `itemVariants` ao entrar na janela, uma vez.

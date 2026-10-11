@@ -33,6 +33,7 @@ import connectionsShot from '../../../docs/tela-conexoes.png'
 import dashboardShot from '../../../docs/tela-painel.png'
 import forecastsShot from '../../../docs/tela-previsoes.png'
 import transactionsShot from '../../../docs/tela-transacoes.png'
+import { MarketHero } from './MarketHero'
 
 const DEMO_URL = `${DEMO_APP_BASE}/`
 
@@ -64,8 +65,10 @@ export function Landing() {
         </LiquidBar>
       </header>
 
+      <MarketHero />
+
       <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 md:px-6">
-        <Hero />
+        <ProductReveal />
 
         <motion.section variants={staggerVariants} {...inView} className="mt-16 flex max-w-[62ch] flex-col gap-4 md:mt-24">
           <motion.h2 variants={itemVariants} className={HEADING}>
@@ -142,11 +145,11 @@ export function Landing() {
 }
 
 /**
- * A primeira dobra. A tela do produto chega deitada, como um papel sobre a
- * mesa, e se levanta conforme a página rola: é a rolagem que traz o produto
- * para a frente do leitor.
+ * A tela do produto, logo depois da abertura. Chega deitada, como um papel
+ * sobre a mesa, e se levanta conforme a página rola: é a rolagem que traz o
+ * produto para a frente do leitor.
  */
-function Hero() {
+function ProductReveal() {
   const frame = useRef<HTMLDivElement>(null)
   const still = useReducedMotion()
   const { scrollYProgress } = useScroll({ target: frame, offset: ['start end', 'start 0.2'] })
@@ -155,51 +158,19 @@ function Hero() {
   const lift = useTransform(scrollYProgress, [0, 1], [48, 0])
 
   return (
-    <section className="pt-12 md:pt-16">
-      <motion.div variants={staggerVariants} initial="initial" animate="enter" className="flex flex-col items-start">
-        <motion.h1
-          variants={itemVariants}
-          className="max-w-[26ch] text-2xl font-semibold tracking-[-0.03em] text-balance text-text lg:text-display"
-        >
-          Seu dinheiro, num painel que roda só na sua máquina.
-        </motion.h1>
-        <motion.p variants={itemVariants} className="mt-6 max-w-[52ch] text-md text-text-2">
-          Contas e cartões chegam pelo Open Finance. Cada compra cai no mês da fatura, e as previsões recebem baixa
-          sozinhas.
-        </motion.p>
-        <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center gap-3">
-          <AnchorButton variant="primary" href={DEMO_URL} icon={<ArrowRightIcon />} className="flex-row-reverse">
-            Abrir a demonstração
-          </AnchorButton>
-          <AnchorButton href={REPOSITORY_URL} icon={<GithubLogoIcon />}>
-            Ver o código no GitHub
-          </AnchorButton>
-        </motion.div>
+    <div ref={frame} className="pt-16 [perspective:1600px] md:pt-24">
+      <motion.div style={still ? undefined : { rotateX, scale, y: lift, transformOrigin: '50% 0%' }}>
+        <a href={DEMO_URL} aria-label="Abrir a demonstração no Painel" className="group surface block overflow-hidden rounded-lg p-2">
+          <img
+            src={dashboardShot}
+            width={1920}
+            height={1200}
+            alt="Painel do Financeiro: faturas do mês por banco, previsão de entradas, últimas transações e saldo em contas"
+            className="w-full rounded-md transition-transform duration-(--dur-layout) ease-out group-hover:scale-[1.01]"
+          />
+        </a>
       </motion.div>
-
-      <div ref={frame} className="mt-12 [perspective:1600px]">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: duration.entrance, ease: ease.out, delay: 0.12 }}
-          style={still ? undefined : { rotateX, scale, y: lift, transformOrigin: '50% 0%' }}
-        >
-          <a
-            href={DEMO_URL}
-            aria-label="Abrir a demonstração no Painel"
-            className="group surface block overflow-hidden rounded-lg p-2"
-          >
-            <img
-              src={dashboardShot}
-              width={1920}
-              height={1200}
-              alt="Painel do Financeiro: faturas do mês por banco, previsão de entradas, últimas transações e saldo em contas"
-              className="w-full rounded-md transition-transform duration-(--dur-layout) ease-out group-hover:scale-[1.01]"
-            />
-          </a>
-        </motion.div>
-      </div>
-    </section>
+    </div>
   )
 }
 

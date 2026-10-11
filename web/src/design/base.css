@@ -222,6 +222,20 @@
   animation: spin 0.9s linear infinite;
 }
 
+/* Fita de cotações: o conteúdo vem duplicado, então meia volta fecha o laço sem emenda. */
+@keyframes ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@utility ticker {
+  animation: ticker 56s linear infinite;
+  &:hover {
+    animation-play-state: paused;
+  }
+}
+
 /* Caractere recém-digitado num campo `typed`: chega 7 px abaixo e sobe até a linha. */
 @keyframes type-in {
   from {
