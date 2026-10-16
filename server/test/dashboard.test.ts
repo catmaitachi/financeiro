@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { cardBill } from '../src/modules/ledger/bill-cycle.ts'
 import { bankAccount, CARD, cardAccount, CHECKING, OWNER_CPF, SAVINGS, seeded, tx } from './support.ts'
 
 describe('consolidação mensal', () => {
@@ -214,6 +215,12 @@ describe('consolidação mensal', () => {
 
     assert.deepEqual(descriptions({ q: 'cafe sao' }), ['Café São João'])
     assert.deepEqual(descriptions({ q: '100%' }), ['Mercado 100%'])
+    // Cada palavra pode bater com o valor, a data ou a conta.
+    assert.deepEqual(descriptions({ q: 'R$ 18,00' }), ['Café São João'])
+    assert.deepEqual(descriptions({ q: '2.500,00' }), ['Salário'])
+    assert.deepEqual(descriptions({ q: '04/10' }), ['Mercado 100%'])
+    assert.deepEqual(descriptions({ q: 'mercado 99' }), ['Mercado 100%'])
+    assert.deepEqual(descriptions({ q: 'cafe 99' }), [])
     assert.deepEqual(descriptions({ accountId: CARD }), ['Mercado 100%'])
     assert.deepEqual(descriptions({ direction: 'in' }), ['Salário'])
     assert.deepEqual(descriptions({ categoryId: '11000000' }), ['Café São João'])
@@ -293,7 +300,7 @@ describe('faturas por banco', () => {
   })
 
   it('a fatura do mês fica paga quando o cartão recebe o pagamento depois do fechamento', async () => {
-    const { provider, container } = seeded()
+    const { provider, container, db } = seeded()
     provider.bills = [
       { id: 'fatura-out', accountId: CARD, dueDate: '2026-10-07', closingDate: '2026-09-30', totalCents: 50000, currencyCode: 'BRL' },
     ]
@@ -307,7 +314,7 @@ describe('faturas por banco', () => {
       tx({ accountId: CARD, postedAt: '2026-10-06T12:00:00.000Z', amountCents: 50000, type: 'CREDIT', description: 'Pagamento recebido' }),
     )
     await container.sync.run({ trigger: 'manual' })
-    const bill = container.dashboard.build('2026-10').banks[0]?.bill
+    const bill = cardBill(db, CARD, '2026-10', '2026-10-08')
     assert.deepEqual([bill?.status, bill?.paidOn, bill?.amountCents, bill?.estimated], ['paid', '2026-10-06', 50000, false])
   })
 
@@ -326,5 +333,53 @@ describe('faturas por banco', () => {
 
     const bill = container.dashboard.build('2026-10').banks[0]?.bill
     assert.deepEqual(bill, { month: '2026-10', amountCents: 10000, status: 'closed', dueDate: '2026-10-10', estimated: true, paidOn: null })
+  })
+})
+
+describe('mês em foco do painel', () => {
+  const BILL_OCT = { id: 'fatura-out', accountId: CARD, dueDate: '2026-10-07', closingDate: '2026-09-30', totalCents: 50000, currencyCode: 'BRL' }
+  const PAYMENT = tx({ accountId: CARD, postedAt: '2026-10-06T12:00:00.000Z', amountCents: 50000, type: 'CREDIT', description: 'Pagamento recebido' })
+  const NOVEMBER_PURCHASE = tx({ accountId: CARD, postedAt: '2026-10-15T12:00:00.000Z', amountCents: 4200, status: 'PENDING', billForecastMonth: '2026-11' })
+
+  it('fica no mês atual enquanto alguma fatura dele está por pagar', async () => {
+    const { provider, container } = seeded()
+    provider.bills = [BILL_OCT]
+    await container.sync.run({ trigger: 'manual' })
+
+    const dashboard = container.dashboard.build()
+    assert.deepEqual([dashboard.focusMonth, dashboard.month], ['2026-10', '2026-10'])
+    assert.equal(dashboard.banks[0]?.bill?.month, '2026-10')
+    assert.equal(dashboard.banks[0]?.bill?.status, 'closed')
+  })
+
+  it('fica no mês atual quando não há fatura nele', async () => {
+    const { container } = seeded()
+    await container.sync.run({ trigger: 'manual' })
+
+    assert.equal(container.dashboard.build().focusMonth, '2026-10')
+  })
+
+  it('passa ao mês seguinte quando todas as faturas do atual estão pagas', async () => {
+    const { provider, container } = seeded()
+    provider.bills = [BILL_OCT]
+    provider.transactions = [PAYMENT, NOVEMBER_PURCHASE]
+    await container.sync.run({ trigger: 'manual' })
+
+    const dashboard = container.dashboard.build()
+    assert.deepEqual([dashboard.currentMonth, dashboard.focusMonth, dashboard.month], ['2026-10', '2026-11', '2026-11'])
+    const [bank] = dashboard.banks
+    assert.deepEqual([bank?.bill?.month, bank?.bill?.status, bank?.bill?.amountCents], ['2026-11', 'open', 4200])
+    assert.equal(bank?.next?.month, '2026-12')
+  })
+
+  it('a competência pedida não muda o foco das faturas por banco', async () => {
+    const { provider, container } = seeded()
+    provider.bills = [BILL_OCT]
+    provider.transactions = [PAYMENT, NOVEMBER_PURCHASE]
+    await container.sync.run({ trigger: 'manual' })
+
+    const dashboard = container.dashboard.build('2026-10')
+    assert.deepEqual([dashboard.month, dashboard.focusMonth], ['2026-10', '2026-11'])
+    assert.equal(dashboard.banks[0]?.bill?.month, '2026-11')
   })
 })

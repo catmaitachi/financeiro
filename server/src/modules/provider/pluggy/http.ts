@@ -163,6 +163,14 @@ export class PluggyHttp {
     if (status >= 500) {
       throw new ProviderError('unavailable', 'A Pluggy está indisponível no momento.', status)
     }
-    throw new ProviderError('unexpected', `A Pluggy respondeu com um erro inesperado (${status}).`, status)
+    // O motivo que a Pluggy dá ("MeuPluggy item cant be updated", por exemplo) é o que permite entender o erro.
+    const reason = await (response.json() as Promise<{ message?: unknown } | null>)
+      .then((body) => (typeof body?.message === 'string' ? body.message : null))
+      .catch(() => null)
+    throw new ProviderError(
+      'unexpected',
+      `A Pluggy respondeu com um erro inesperado (${status})${reason ? `: ${reason}` : ''}.`,
+      status,
+    )
   }
 }

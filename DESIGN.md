@@ -155,6 +155,16 @@ Previsão é fluxo de caixa, não apenas recebimento. Valor positivo representa 
 
 O topo da tela resume somente movimentações em aberto em três leituras: saldo previsto, a receber e a pagar. Entrada usa `data-income`; saída usa `data-expense`; o sinal continua escrito no valor, então a leitura não depende da cor. A lista permanece cronológica por competência e usa seta de direção, valor assinado e linguagem contextual (“recebida” para entrada, “paga” para saída).
 
+## Calendário e assinaturas
+
+A grade do mês vai de domingo a sábado, com os dias vizinhos esmaecidos. Cada dia mostra até três eventos escritos (marca e nome curto) e "+N eventos"; em telas estreitas, só marcadores, e o detalhe fica na lista do dia, abaixo da grade. Hoje é o número em pílula `accent`; o dia escolhido ganha borda `accent` e fundo `accent-wash`. As setas do teclado andam pelos dias, inclusive para outro mês. A troca de mês usa `swapVariants`.
+
+Cada tipo de evento tem marca própria e rótulo escrito: cadeado para fechamento, recibo para vencimento, seta de direção para previsão e o logotipo do serviço para assinatura. "Estimada", "Paga", "Cobrada" e "Esperada" são sempre etiquetas, nunca só cor. Faturas, assinaturas e previsões são `Chip`s de ligar e desligar.
+
+No detalhe de uma assinatura, abaixo das cobranças vinculadas, um campo de busca procura saídas do extrato por descrição, valor, data ou conta. Os resultados abrem com `collapseVariants`, a busca anterior fica esmaecida até a nova chegar e cada linha vincula com um clique; a que já é de outra assinatura aparece com a etiqueta "Em Netflix", sem ação. A cobrança vinculada à mão leva a etiqueta "Vinculada à mão".
+
+O selo de serviço segue o selo de banco: decorativo, com o nome sempre escrito ao lado. O logotipo vem do site do serviço sobre o azulejo `logo-tile`; sem site, ou quando o provedor só tem o ícone genérico, aparece a inicial sobre `coffee`, e a imagem entra com transição de opacidade.
+
 ## Conexões e ajustes
 
 Conexões e Ajustes são uma única área na navegação. Bancos conectados vêm primeiro porque são o objeto de trabalho; modo de conexão, credenciais e armazenamento formam uma coluna de infraestrutura. Em telas estreitas, a ordem é linear: bancos, modo de conexão, credenciais e dados locais. `/ajustes` existe apenas como redirecionamento para links antigos.

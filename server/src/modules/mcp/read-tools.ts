@@ -1,6 +1,7 @@
 import { z } from 'zod'
-import { dateSchema, monthSchema, uuidSchema } from '../../platform/http/validate.ts'
-import { currentMonth, todayLocal } from '../../platform/time.ts'
+import { dateSchema, daySchema, monthSchema, uuidSchema } from '../../platform/http/validate.ts'
+import { addDays } from '../../../../shared/days.ts'
+import { todayLocal } from '../../platform/time.ts'
 import type { McpPorts } from './ports.ts'
 import { defineTool, type McpTool } from './tool.ts'
 
@@ -10,20 +11,30 @@ const MONEY_NOTE =
   'Valores monetários vêm em centavos inteiros (R$ 12,34 = 1234). Datas civis no fuso de São Paulo.'
 
 /** Ferramentas que só consultam. Ficam sempre disponíveis. */
-export function readTools({ ledger, dashboard, forecasts, reconciliation, sync, connections, clock }: McpPorts): McpTool[] {
+export function readTools({
+  ledger,
+  dashboard,
+  forecasts,
+  reconciliation,
+  subscriptions,
+  calendar,
+  sync,
+  connections,
+  clock,
+}: McpPorts): McpTool[] {
   return [
     defineTool({
       name: 'resumo_do_mes',
       title: 'Resumo do mês',
       description:
         'Painel financeiro de um mês: saldo das contas, entradas, saídas, faturas de cartão, previsões e pendências de conciliação. ' +
-        `Sem "mes", usa o mês corrente. ${MONEY_NOTE}`,
+        `Sem "mes", usa o mês em foco: o corrente ou, quando todas as faturas dele já estão pagas, o seguinte. ${MONEY_NOTE}`,
       inputSchema: z.object({
-        mes: monthSchema.optional().describe('Mês no formato AAAA-MM. Padrão: mês corrente.'),
+        mes: monthSchema.optional().describe('Mês no formato AAAA-MM. Padrão: mês em foco.'),
         ate_mes: monthSchema.optional().describe('Último mês da janela de projeção, AAAA-MM.'),
       }),
       annotations: READ_ONLY,
-      run: ({ mes, ate_mes }) => dashboard.build(mes ?? currentMonth(clock), ate_mes),
+      run: ({ mes, ate_mes }) => dashboard.build(mes, ate_mes),
     }),
 
     defineTool({
@@ -44,7 +55,10 @@ export function readTools({ ledger, dashboard, forecasts, reconciliation, sync, 
         'Sem período (mes, de ou ate), a lista para em hoje: parcelas futuras de cartão só entram com incluir_futuros ou com um período que as alcance. ' +
         `${MONEY_NOTE}`,
       inputSchema: z.object({
-        busca: z.string().max(120).optional().describe('Texto livre, procurado na descrição e no estabelecimento.'),
+        busca: z.string().max(120).optional().describe(
+            'Palavras que precisam bater todas, cada uma com a descrição, o valor (44,90, R$ 1.234,56 ou 44 para R$ 44,00 a R$ 44,99), ' +
+              'a data (12/09, 12/09/2026 ou 09/2026) ou a conta (nubank ou o número dela).',
+          ),
         mes: monthSchema.optional().describe('Mês AAAA-MM. Em cartões vale o mês da fatura; em contas, o mês da data.'),
         de: dateSchema.optional().describe('Data inicial, AAAA-MM-DD.'),
         ate: dateSchema.optional().describe('Data final, AAAA-MM-DD.'),
@@ -93,10 +107,40 @@ export function readTools({ ledger, dashboard, forecasts, reconciliation, sync, 
     defineTool({
       name: 'listar_previsoes',
       title: 'Listar previsões',
-      description: `Previsões de entradas e saídas (únicas e recorrentes) com suas ocorrências mensais e o estado de cada uma. ${MONEY_NOTE}`,
+      description:
+        'Previsões de entradas e saídas (únicas e recorrentes; mensais, semanais ou diárias) com suas ocorrências, ' +
+        `o dia de cada uma quando houver e o estado. ${MONEY_NOTE}`,
       inputSchema: z.object({}),
       annotations: READ_ONLY,
       run: () => ({ previsoes: forecasts.list(), mes_inicial_padrao: forecasts.defaultStartMonth() }),
+    }),
+
+    defineTool({
+      name: 'listar_assinaturas',
+      title: 'Listar assinaturas',
+      description:
+        'Assinaturas encontradas nas cobranças recorrentes: as confirmadas pelo usuário e as sugeridas que esperam confirmação, ' +
+        `com cadência, valor, próxima cobrança, conta e cobranças vinculadas. Inclui o custo mensal das ativas. ${MONEY_NOTE}`,
+      inputSchema: z.object({}),
+      annotations: READ_ONLY,
+      run: () => subscriptions.list(),
+    }),
+
+    defineTool({
+      name: 'listar_calendario',
+      title: 'Listar calendário',
+      description:
+        'O que acontece em cada dia de um intervalo: fechamento e vencimento de faturas, cobranças de assinaturas confirmadas ' +
+        `(feitas e esperadas) e previsões com dia. Intervalo de até 92 dias; padrão: os próximos 30 dias. ${MONEY_NOTE}`,
+      inputSchema: z.object({
+        de: daySchema.optional().describe('Primeiro dia, AAAA-MM-DD. Padrão: hoje.'),
+        ate: daySchema.optional().describe('Último dia, AAAA-MM-DD. Padrão: 29 dias depois do primeiro.'),
+      }),
+      annotations: READ_ONLY,
+      run: ({ de, ate }) => {
+        const from = de ?? todayLocal(clock)
+        return calendar.events(from, ate ?? addDays(from, 29))
+      },
     }),
 
     defineTool({

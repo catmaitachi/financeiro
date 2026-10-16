@@ -53,7 +53,9 @@ function Status({ bill }: { bill: BankBill }) {
 }
 
 interface BankBillsProps {
+  /** Mês em foco: o atual ou, com as faturas dele pagas, o seguinte. */
   month: Month
+  currentMonth: Month
   banks: BankSummary[]
   tones: BankTones
   /** Previsões em aberto da competência exibida. */
@@ -96,7 +98,7 @@ function Verdict({ unpaid, net, hasForecast, forecastMonth }: { unpaid: number; 
  * por banco, e onde termina a previsão líquida (entradas menos saídas em
  * aberto); abaixo, uma linha por banco com o valor e se já foi paga.
  */
-export function BankBills({ month, banks, tones, forecasts, forecastMonth }: BankBillsProps) {
+export function BankBills({ month, currentMonth, banks, tones, forecasts, forecastMonth }: BankBillsProps) {
   const billed = banks.filter((entry) => entry.bill !== null)
   const total = billed.reduce((sum, entry) => sum + entry.bill!.amountCents, 0)
   const unpaid = billed.filter((entry) => entry.bill!.status !== 'paid')
@@ -124,6 +126,12 @@ export function BankBills({ month, banks, tones, forecasts, forecastMonth }: Ban
               ) : (
                 'Tudo pago neste mês'
               )}
+            </p>
+          ) : null}
+          {month > currentMonth ? (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-3">
+              <CheckCircleIcon size={14} weight="fill" className="text-positive" />
+              As faturas de {formatMonthName(currentMonth)} já estão pagas
             </p>
           ) : null}
         </div>

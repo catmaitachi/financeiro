@@ -12,12 +12,14 @@ import { addDays, todayLocal, type Clock } from '../../platform/time.ts'
 import type { LedgerWriter } from '../ledger/ledger-writer.ts'
 import { ProviderError, type FinancialProvider } from '../provider/provider.ts'
 import type { ReconciliationService } from '../reconciliation/reconciliation-service.ts'
+import type { SubscriptionService } from '../subscriptions/subscription-service.ts'
 
 interface Deps {
   db: Db
   provider: FinancialProvider
   writer: LedgerWriter
   reconciliation: ReconciliationService
+  subscriptions: SubscriptionService
   clock: Clock
   logger: Logger
   initialHistoryDays: number
@@ -129,6 +131,7 @@ export class SyncService {
 
       writer.repairTransfers()
       reconciliation = this.#deps.reconciliation.reconcile()
+      this.#deps.subscriptions.detect()
     } catch (error) {
       fatal = describe(error)
       if (error instanceof ProviderError && error.kind === 'invalid_credentials') this.#deps.onCredentialsRejected?.()

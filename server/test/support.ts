@@ -109,7 +109,7 @@ export class FakeProvider implements FinancialProvider {
   failTransactionsFor: string | null = null
   /** Conector de dados próprios habilitado na Application; `null` simula o MeuPluggy desligado. */
   ownDataConnector: { id: number; name: string } | null = { id: 200, name: 'MeuPluggy' }
-  calls = { verify: 0, transactionPages: 0, connectTokens: 0 }
+  calls = { verify: 0, transactionPages: 0, connectTokens: 0, refreshes: 0 }
 
   addItem(overrides: Partial<ProviderItem> = {}): ProviderItem {
     const item: ProviderItem = {
@@ -155,7 +155,11 @@ export class FakeProvider implements FinancialProvider {
   }
 
   async refreshItem(itemId: string) {
-    return this.getItem(itemId)
+    const item = await this.getItem(itemId)
+    // Como na Pluggy: o MeuPluggy não aceita pedido de nova coleta.
+    if (item.institution.name === 'MeuPluggy') return null
+    this.calls.refreshes++
+    return item
   }
 
   async deleteItem(itemId: string) {

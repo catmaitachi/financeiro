@@ -3,9 +3,11 @@
  *
  *   300        uma previsão de R$ 300,00
  *   -300       uma saída prevista de R$ 300,00
- *   300*3      três competências de R$ 300,00
- *   900/3      R$ 900,00 divididos em três competências
- *   300!       R$ 300,00 todo mês, sem data para acabar
+ *   300*3      três ocorrências de R$ 300,00
+ *   900/3      R$ 900,00 divididos em três ocorrências
+ *   300!       R$ 300,00 a cada período, sem data para acabar
+ *
+ * O período (mês, semana ou dia) é a frequência da previsão, escolhida à parte.
  *
  * Valores aceitam o formato brasileiro (`1.200,50`). O mesmo módulo roda no
  * servidor (fonte da verdade) e no navegador (pré-visualização enquanto digita).
@@ -19,9 +21,9 @@ export type ForecastMode = 'single' | 'repeat' | 'split'
 export interface ForecastPlan {
   mode: ForecastMode
   totalCents: number
-  /** Um valor em centavos por competência, na ordem. Na recorrente, só o valor mensal. */
+  /** Um valor em centavos por ocorrência, na ordem. Na recorrente, só o valor de cada período. */
   amountsCents: number[]
-  /** Repete todo mês sem fim definido (sufixo `!`). */
+  /** Repete a cada período sem fim definido (sufixo `!`). */
   recurring: boolean
 }
 
@@ -38,10 +40,10 @@ const MESSAGES: Record<ForecastExpressionErrorCode, string> = {
   empty: 'Informe um valor, por exemplo 300, -300, 300*3, 900/3 ou 300!.',
   invalid_syntax: 'Use um valor simples (300), negativo (-300), repetido (300*3), dividido (900/3) ou recorrente (300!).',
   invalid_amount: 'Não entendi o valor. Exemplos válidos: 300, -300, 1.200,50 ou 89,90.',
-  invalid_count: `A quantidade de meses deve ser um número inteiro entre 1 e ${MAX_INSTALLMENTS}.`,
-  recurring_with_count: 'Uma previsão recorrente não tem quantidade de meses. Use só o valor, como 300!.',
+  invalid_count: `A quantidade de repetições deve ser um número inteiro entre 1 e ${MAX_INSTALLMENTS}.`,
+  recurring_with_count: 'Uma previsão recorrente não tem quantidade de repetições. Use só o valor, como 300!.',
   amount_too_large: 'O valor é alto demais para uma previsão.',
-  amount_too_small: 'O valor é pequeno demais para dividir nessa quantidade de meses.',
+  amount_too_small: 'O valor é pequeno demais para dividir em tantas partes.',
 }
 
 export class ForecastExpressionError extends Error {

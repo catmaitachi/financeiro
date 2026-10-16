@@ -14,6 +14,7 @@ import type { BankDirectory } from '../institutions/bank-directory.ts'
 import { BILL_MONTH } from './bill-month.ts'
 import { localTimeOf } from '../../platform/time.ts'
 import { searchText } from './derive.ts'
+import { matchFilter } from './transaction-match.ts'
 
 interface EntryRow {
   id: string
@@ -48,6 +49,12 @@ interface EntryRow {
 const DEFAULT_PAGE_SIZE = 50
 const UNKNOWN_BANK: BankRef = { id: 'outro', name: 'Outro banco' }
 const MAX_PAGE_SIZE = 200
+
+/** Filtros que só o servidor usa, além dos que a tela de transações manda. */
+export interface TransactionSearch extends TransactionQuery {
+  /** Mesma busca ampla de `q` (cada palavra bate com descrição, valor, data ou conta), somada a ela. */
+  match?: string
+}
 
 export class LedgerQueries {
   readonly #db: Db
@@ -126,13 +133,19 @@ export class LedgerQueries {
     return family
   }
 
-  listTransactions(query: TransactionQuery & { unidentified?: boolean }): TransactionPage {
+  listTransactions(query: TransactionSearch): TransactionPage {
     const where: string[] = []
     const params: Record<string, unknown> = {}
 
-    if (query.q?.trim()) {
-      where.push(`e.search_text LIKE :q ESCAPE '\\'`)
-      params.q = `%${searchText(query.q.trim()).replace(/[\\%_]/g, '\\$&')}%`
+    const match = [query.q, query.match].filter((text) => text?.trim()).join(' ')
+    if (match) {
+      const accounts = this.listAccounts().map((account) => ({
+        id: account.id,
+        text: searchText(account.bank.name, account.name, account.label, account.number),
+      }))
+      const filter = matchFilter(match, accounts)
+      where.push(...filter.clauses)
+      Object.assign(params, filter.params)
     }
     if (query.month) {
       where.push(`${BILL_MONTH} = :month`)

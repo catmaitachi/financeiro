@@ -52,7 +52,7 @@ export function Shell() {
       options={sections.map((section) => ({ value: section.path, label: section.label, icon: section.icon }))}
       value={current?.path ?? ''}
       onChange={(path) => navigate(path)}
-      compactOnMobile
+      compactBelow="lg"
     />
   )
 
@@ -62,7 +62,7 @@ export function Shell() {
       <header className="sticky top-0 z-(--z-nav) px-4 pt-4 md:px-6">
         <LiquidBar className="mx-auto h-16 max-w-[1180px]">
           <div className="flex w-full items-center justify-between gap-4 px-3">
-            <nav className="hidden w-[520px] max-w-full md:block lg:w-[620px]">{nav}</nav>
+            <nav className="hidden w-[360px] max-w-full md:block lg:w-[640px] xl:w-[820px]">{nav}</nav>
             <div className="ml-auto flex items-center gap-2">
               <Button
                 variant="ghost"

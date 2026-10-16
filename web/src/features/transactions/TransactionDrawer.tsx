@@ -2,6 +2,7 @@ import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useRef, type ReactNode } from 'react'
 import type { TransactionOverrideInput, TransactionRow } from '@shared/api'
+import { TransactionSubscription } from '@/features/subscriptions/TransactionSubscription'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { formatDayLong, formatMoney, formatMonth } from '@/lib/format'
@@ -45,7 +46,7 @@ interface TransactionDrawerProps {
   onClose: () => void
 }
 
-/** Detalhes de um lançamento e as duas correções locais: categoria e inclusão nos totais. */
+/** Detalhes de um lançamento e as correções locais: categoria, assinatura e inclusão nos totais. */
 export function TransactionDrawer({ transaction: current, onClose }: TransactionDrawerProps) {
   // Ao fechar, o último lançamento continua desenhado até a animação de saída terminar.
   const last = useRef(current)
@@ -147,6 +148,8 @@ export function TransactionDrawer({ transaction: current, onClose }: Transaction
               </Button>
             ) : null}
           </section>
+
+          <TransactionSubscription transaction={transaction} />
 
           <section className="flex flex-col gap-3">
             <p className="text-sm font-medium text-text-2">Nos totais do mês</p>

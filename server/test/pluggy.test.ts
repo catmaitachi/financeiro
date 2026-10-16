@@ -156,6 +156,12 @@ describe('adaptador da Pluggy', () => {
     const down = provider(() => ({ status: 503, body: {} }))
     await assert.rejects(down.instance.listCategories(), (error) => error instanceof ProviderError && error.kind === 'unavailable')
 
+    const refused = provider(() => ({ status: 400, body: { message: 'MeuPluggy item cant be updated', code: 400 } }))
+    await assert.rejects(
+      refused.instance.getItem('x'),
+      (error) => error instanceof ProviderError && error.kind === 'unexpected' && error.message.includes('MeuPluggy item cant be updated'),
+    )
+
     const missing = provider(() => ({ status: 404, body: {} }))
     await assert.rejects(missing.instance.getItem('x'), (error) => error instanceof ProviderError && error.kind === 'not_found')
   })
@@ -319,5 +325,16 @@ describe('MeuPluggy', () => {
   it('devolve nulo quando não está habilitado na Application', async () => {
     const { instance } = provider(() => ({ body: { results: [{ id: 601, name: 'Itaú' }], totalPages: 1 } }))
     assert.equal(await instance.findOwnDataConnector(), null)
+  })
+
+  it('não pede nova coleta de um item do MeuPluggy, que a Pluggy recusa', async () => {
+    const item = (name: string) => ({ id: 'item-1', connector: { name }, status: 'UPDATED', executionStatus: 'SUCCESS' })
+    const own = provider(() => ({ body: item('MeuPluggy') }))
+    assert.equal(await own.instance.refreshItem('item-1'), null)
+    assert.equal(own.calls.some((call) => call.method === 'PATCH'), false)
+
+    const bank = provider(() => ({ body: item('Itaú') }))
+    assert.equal((await bank.instance.refreshItem('item-1'))?.status, 'UPDATED')
+    assert.equal(bank.calls.at(-1)?.method, 'PATCH')
   })
 })

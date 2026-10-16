@@ -66,6 +66,9 @@ export class PluggyProvider implements FinancialProvider {
   }
 
   async refreshItem(itemId: string) {
+    // A Pluggy recusa com 400 ("MeuPluggy item cant be updated"): quem busca os bancos é o próprio MeuPluggy.
+    const item = await this.getItem(itemId)
+    if (normalizeName(item.institution.name) === normalizeName(OWN_DATA_CONNECTOR)) return null
     return normalizeItem(await this.#http.patch<Raw>(`/items/${encodeURIComponent(itemId)}`))
   }
 

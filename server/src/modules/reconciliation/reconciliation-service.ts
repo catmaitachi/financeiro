@@ -1,9 +1,9 @@
-import type { MatchReason, ReconciliationQueue, ReviewItem } from '../../../../shared/api.ts'
-import type { Month } from '../../../../shared/months.ts'
+import type { ForecastFrequency, MatchReason, ReconciliationQueue, ReviewItem } from '../../../../shared/api.ts'
 import { all, get, run, transaction, type Db } from '../../platform/db/database.ts'
 import { conflict, notFound } from '../../platform/http/errors.ts'
-import { currentMonth, type Clock } from '../../platform/time.ts'
+import { todayLocal, type Clock } from '../../platform/time.ts'
 import { OCCURRENCE_SELECT, toOccurrence, type OccurrenceRow } from '../forecasts/forecast-service.ts'
+import { TOLERANCE_DAYS } from '../forecasts/schedule.ts'
 import { pairKey, planMatches, type CreditCandidate, type OpenOccurrence } from './matcher.ts'
 
 interface MatchRow {
@@ -31,17 +31,19 @@ export class ReconciliationService {
     return transaction(this.#db, () => {
       this.#releaseVanished(now)
 
-      const occurrences = all<OpenOccurrence>(
+      const occurrences: OpenOccurrence[] = all<OpenOccurrence & { frequency: ForecastFrequency }>(
         this.#db,
-        `SELECT id, month,
-                CASE WHEN direction = 'out' THEN -amount_cents ELSE amount_cents END AS amountCents
-           FROM forecast_occurrences WHERE status = 'expected'`,
-      )
+        `SELECT o.id, o.month, o.day, s.frequency,
+                CASE WHEN o.direction = 'out' THEN -o.amount_cents ELSE o.amount_cents END AS amountCents
+           FROM forecast_occurrences o
+           JOIN forecast_series s ON s.id = o.series_id
+          WHERE o.status = 'expected'`,
+      ).map(({ frequency, ...occurrence }) => ({ ...occurrence, toleranceDays: TOLERANCE_DAYS[frequency] }))
       // Lançamentos em conta, confirmados, em reais e ainda sem vínculo. Débitos recebem
       // sinal negativo para usar o mesmo pareamento exato das entradas.
       const transactions = all<CreditCandidate>(
         this.#db,
-        `SELECT e.id, substr(e.local_date, 1, 7) AS month,
+        `SELECT e.id, substr(e.local_date, 1, 7) AS month, e.local_date AS date,
                 CASE WHEN e.direction = 'out' THEN -e.amount_cents ELSE e.amount_cents END AS amountCents
            FROM ledger_entries e
           WHERE e.account_type = 'BANK' AND e.status = 'POSTED'
@@ -106,7 +108,7 @@ export class ReconciliationService {
   }
 
   queue(): ReconciliationQueue {
-    const thisMonth: Month = currentMonth(this.#clock)
+    const today = todayLocal(this.#clock)
     const candidates = all<{
       match_id: number
       occurrence_id: number
@@ -136,7 +138,7 @@ export class ReconciliationService {
         `${OCCURRENCE_SELECT}
           WHERE o.id IN (SELECT occurrence_id FROM forecast_matches WHERE status = 'suggested')
           ORDER BY o.month, o.id`,
-      ).map((row) => [row.id, toOccurrence(row, thisMonth)]),
+      ).map((row) => [row.id, toOccurrence(row, today)]),
     )
 
     const items = new Map<number, ReviewItem>()

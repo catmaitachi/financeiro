@@ -89,6 +89,8 @@ describe('MCP: ferramentas de leitura', () => {
     assert.deepEqual(names, [
       'estado_da_sincronizacao',
       'fila_de_conciliacao',
+      'listar_assinaturas',
+      'listar_calendario',
       'listar_categorias',
       'listar_conexoes',
       'listar_contas',
@@ -158,9 +160,12 @@ const WRITE_TOOLS = [
   'criar_previsao',
   'definir_status_da_ocorrencia',
   'desfazer_conciliacao',
+  'desvincular_cobranca_da_assinatura',
+  'marcar_transacao_como_assinatura',
   'recategorizar_transacao',
   'rejeitar_conciliacao',
   'sincronizar',
+  'vincular_cobranca_a_assinatura',
 ]
 
 const names = async (mcp: ReturnType<typeof client>) =>
@@ -273,6 +278,31 @@ describe('MCP: escrita', () => {
     assert.equal(result.isError, undefined)
     assert.equal(result.structuredContent.run.status, 'success')
     assert.equal((await mcp.call('listar_transacoes', { busca: 'nova' })).structuredContent.total, 1)
+  })
+
+  it('vincular_cobranca_a_assinatura vincula a saída e desvincular_cobranca_da_assinatura desfaz', async () => {
+    const { mcp, container, provider } = await ready()
+    container.settings.updateApp({ mcpWriteEnabled: true })
+    for (const month of ['07', '08', '09']) {
+      provider.transactions.push(tx({ postedAt: `2026-${month}-12T12:00:00.000Z`, amountCents: 12900, description: 'ACADEMIA FORMA' }))
+    }
+    await container.sync.run({ trigger: 'manual' })
+    const [subscription] = container.subscriptions.list().subscriptions
+    const restaurant = ((await mcp.call('listar_transacoes', { busca: 'restaurante' })).structuredContent.items[0] as Json).id
+    const salary = ((await mcp.call('listar_transacoes', { busca: 'salario' })).structuredContent.items[0] as Json).id
+
+    const linked = await mcp.call('vincular_cobranca_a_assinatura', { assinatura: subscription!.id, transacao: restaurant })
+    assert.equal(linked.isError, undefined)
+    assert.equal(linked.structuredContent.lastChargeDate, '2026-10-02')
+    assert.equal(linked.structuredContent.charges.length, 4)
+
+    const income = await mcp.call('vincular_cobranca_a_assinatura', { assinatura: subscription!.id, transacao: salary })
+    assert.equal(income.isError, true)
+    assert.match(income.content[0].text, /saída/)
+
+    const unlinked = await mcp.call('desvincular_cobranca_da_assinatura', { assinatura: subscription!.id, transacao: restaurant })
+    assert.equal(unlinked.isError, undefined)
+    assert.equal(unlinked.structuredContent.lastChargeDate, '2026-09-12')
   })
 })
 

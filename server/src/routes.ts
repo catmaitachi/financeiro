@@ -1,16 +1,16 @@
 /** Rotas internas. Cada bloco só valida a entrada e delega ao módulo dono da regra. */
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { ApiErrorBody, McpConnectionKit, McpInfo, SetupStatus } from '../../shared/api.ts'
+import type { ApiErrorBody, McpConnectionKit, McpInfo, RefreshResult, SetupStatus } from '../../shared/api.ts'
 import type { Container } from './container.ts'
 import { buildConnectionKit } from './modules/mcp/connection-kit.ts'
 import { handleMcpRequest } from './modules/mcp/mcp-server.ts'
 import { mcpTools } from './modules/mcp/tools.ts'
-import { dateSchema, monthSchema, parseBody, parseParam, parseQuery, uuidSchema } from './platform/http/validate.ts'
-import { currentMonth, systemClock } from './platform/time.ts'
+import { dateSchema, daySchema, monthSchema, parseBody, parseParam, parseQuery, uuidSchema } from './platform/http/validate.ts'
 
 const idParam = z.coerce.number().int().positive()
 const scopeSchema = z.enum(['one', 'future'])
+const frequencySchema = z.enum(['monthly', 'weekly', 'daily'])
 
 export function setupRoutes({ credentials, connections }: Container) {
   // O navegador só recebe o estado. Client Secret e API Key nunca saem do servidor.
@@ -48,8 +48,8 @@ export function pluggyRoutes({ connections }: Container) {
       return c.json(connections.list(), 201)
     })
     .post('/connections/:itemId/refresh', async (c) => {
-      await connections.refresh(parseParam(c, 'itemId', uuidSchema))
-      return c.json(connections.list(), 202)
+      const { requested } = await connections.refresh(parseParam(c, 'itemId', uuidSchema))
+      return c.json({ requested, connections: connections.list() } satisfies RefreshResult, requested ? 202 : 200)
     })
     .delete('/connections/:itemId', async (c) => {
       await connections.remove(parseParam(c, 'itemId', uuidSchema))
@@ -69,7 +69,7 @@ export function syncRoutes({ sync }: Container) {
 export function dashboardRoutes({ dashboard }: Container) {
   return new Hono().get('/', (c) => {
     const query = parseQuery(c, z.object({ month: monthSchema.optional(), windowEnd: monthSchema.optional() }))
-    return c.json(dashboard.build(query.month ?? currentMonth(systemClock), query.windowEnd))
+    return c.json(dashboard.build(query.month, query.windowEnd))
   })
 }
 
@@ -118,7 +118,10 @@ export function forecastRoutes({ forecasts, reconciliation }: Container) {
         z.object({
           expression: z.string().min(1, 'Informe o valor da previsão.').max(40),
           name: z.string().max(80).nullable().optional(),
+          frequency: frequencySchema.optional(),
           startMonth: monthSchema.optional(),
+          dayOfMonth: z.number().int().min(1).max(31).optional(),
+          startDay: daySchema.optional(),
         }),
       )
       const created = forecasts.create(body)
@@ -149,8 +152,12 @@ export function forecastRoutes({ forecasts, reconciliation }: Container) {
               .refine((value) => value !== 0, 'O valor da previsão não pode ser zero.')
               .optional(),
             month: monthSchema.optional(),
+            day: daySchema.nullable().optional(),
           })
-          .refine((value) => value.amountCents !== undefined || value.month !== undefined, 'Nada para alterar.'),
+          .refine(
+            (value) => value.amountCents !== undefined || value.month !== undefined || value.day !== undefined,
+            'Nada para alterar.',
+          ),
       )
       forecasts.updateOccurrence(parseParam(c, 'id', idParam), body)
       reconciliation.reconcile()
@@ -183,6 +190,49 @@ export function reconciliationRoutes({ reconciliation }: Container) {
     })
     .post('/:matchId/undo', (c) => {
       reconciliation.undo(parseParam(c, 'matchId', idParam))
+      return c.body(null, 204)
+    })
+}
+
+export function calendarRoutes({ calendar }: Container) {
+  return new Hono().get('/', (c) => {
+    const query = parseQuery(c, z.object({ from: daySchema, to: daySchema }))
+    return c.json(calendar.events(query.from, query.to))
+  })
+}
+
+export function subscriptionRoutes({ subscriptions }: Container) {
+  const editSchema = z.object({
+    name: z.string().min(1, 'Informe o nome da assinatura.').max(80).optional(),
+    domain: z.string().max(253).nullable().optional(),
+    cadence: z.enum(['weekly', 'monthly', 'yearly']).optional(),
+  })
+  return new Hono()
+    .get('/', (c) => c.json(subscriptions.list()))
+    .post('/', async (c) => {
+      const body = await parseBody(c, z.object({ transactionId: uuidSchema }))
+      return c.json(subscriptions.markTransaction(body.transactionId))
+    })
+    .post('/:id/confirm', async (c) => c.json(subscriptions.confirm(parseParam(c, 'id', idParam), await parseBody(c, editSchema))))
+    .post('/:id/dismiss', (c) => {
+      subscriptions.dismiss(parseParam(c, 'id', idParam))
+      return c.body(null, 204)
+    })
+    .post('/:id/end', (c) => {
+      subscriptions.end(parseParam(c, 'id', idParam))
+      return c.body(null, 204)
+    })
+    .patch('/:id', async (c) => c.json(subscriptions.update(parseParam(c, 'id', idParam), await parseBody(c, editSchema))))
+    .get('/:id/candidates', (c) => {
+      const query = parseQuery(c, z.object({ q: z.string().max(120).default('') }))
+      return c.json(subscriptions.searchCharges(parseParam(c, 'id', idParam), query.q))
+    })
+    .post('/:id/charges', async (c) => {
+      const body = await parseBody(c, z.object({ transactionId: uuidSchema }))
+      return c.json(subscriptions.linkCharge(parseParam(c, 'id', idParam), body.transactionId))
+    })
+    .delete('/:id/charges/:transactionId', (c) => {
+      subscriptions.unlinkCharge(parseParam(c, 'id', idParam), parseParam(c, 'transactionId', uuidSchema))
       return c.body(null, 204)
     })
 }

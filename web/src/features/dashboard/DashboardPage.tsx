@@ -18,6 +18,7 @@ import { BankBills } from './BankBills'
 import { BillCategories } from './BillCategories'
 import { BillYear } from './BillYear'
 import { RecentPanel } from './RecentPanel'
+import { UpcomingEvents } from './UpcomingEvents'
 
 function Loading() {
   return (
@@ -46,7 +47,7 @@ export default function DashboardPage() {
   })
   const dashboard = query.data
 
-  const select = (next: Month) => setParams(next === dashboard?.currentMonth ? {} : { mes: next }, { replace: true })
+  const select = (next: Month) => setParams(next === dashboard?.focusMonth ? {} : { mes: next }, { replace: true })
 
   if (query.isPending) return <Loading />
 
@@ -96,9 +97,10 @@ export default function DashboardPage() {
       // Enquanto o novo mês carrega, o conteúdo anterior esmaece em vez de piscar.
       className={cn('flex flex-col gap-6 transition-opacity duration-(--dur-state)', query.isPlaceholderData && 'opacity-60')}
     >
-      {/* O que se vem conferir: a fatura do mês, de qual banco vem cada parte, o que falta pagar e o que a previsão diz sobre isso. */}
+      {/* O que se vem conferir: a fatura do mês em foco (o seguinte, quando as do atual já estão pagas), de qual banco vem cada parte, o que falta pagar e o que a previsão diz sobre isso. */}
       <BankBills
-        month={dashboard.currentMonth}
+        month={dashboard.focusMonth}
+        currentMonth={dashboard.currentMonth}
         banks={dashboard.banks}
         tones={tones}
         forecasts={dashboard.forecasts}
@@ -123,6 +125,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex min-w-0 flex-col gap-6 lg:col-span-5">
           <BalancesPanel banks={dashboard.banks} />
+          <UpcomingEvents />
           <BillCategories month={dashboard.month} categories={dashboard.billCategories} tones={tones} />
           <AttentionList dashboard={dashboard} />
         </div>

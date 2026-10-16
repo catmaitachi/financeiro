@@ -107,6 +107,17 @@ export interface Connection {
   accounts: AccountSummary[]
 }
 
+/** Resposta de "Atualizar" numa conexão. */
+export interface RefreshResult {
+  /**
+   * A instituição recebeu o pedido de nova coleta. `false` quando a conexão
+   * não aceita o pedido (o MeuPluggy busca os bancos sozinho, uma vez por dia)
+   * e só se copiou de novo o que ele já tem.
+   */
+  requested: boolean
+  connections: Connection[]
+}
+
 // --- Sincronização ----------------------------------------------------------
 
 export type SyncTrigger = 'open' | 'manual' | 'connect'
@@ -225,9 +236,9 @@ export interface BankSummary {
   /** Saldo das contas do banco; `null` quando ele só tem cartão. */
   balanceCents: number | null
   cards: { accountId: string; label: string; brand: string | null }[]
-  /** Fatura que vence no mês atual. */
+  /** Fatura que vence no mês em foco do painel. */
   bill: BankBill | null
-  /** Fatura do mês seguinte, ainda em aberto. */
+  /** Fatura do mês seguinte ao mês em foco. */
   next: BankBill | null
 }
 
@@ -244,7 +255,12 @@ export interface BillCategory extends CategorySlice {
 export interface Dashboard {
   month: Month
   currentMonth: Month
-  /** Bancos conectados, com a fatura do mês atual; não dependem da competência exibida. */
+  /**
+   * Mês em que o painel se concentra: o atual enquanto alguma fatura dele
+   * estiver por pagar; quando todas estão pagas, o seguinte.
+   */
+  focusMonth: Month
+  /** Bancos conectados, com a fatura do mês em foco; não dependem da competência exibida. */
   banks: BankSummary[]
   /** Faturas de cada mês do ano da competência exibida, divididas por banco. */
   billYear: { month: Month; totalCents: number; byBank: BankShare[] }[]
@@ -360,8 +376,10 @@ export interface TransactionOverrideInput {
 
 // --- Previsões --------------------------------------------------------------
 
+export type ForecastFrequency = 'monthly' | 'weekly' | 'daily'
+
 export type OccurrenceStatus = 'expected' | 'received_auto' | 'received_manual' | 'ignored' | 'cancelled'
-/** `overdue` é derivado: prevista cuja competência já passou. */
+/** `overdue` é derivado: prevista cujo dia (ou, sem dia, cuja competência) já passou. */
 export type OccurrenceDisplayStatus = OccurrenceStatus | 'overdue'
 
 export interface LinkedTransaction {
@@ -380,9 +398,12 @@ export interface ForecastOccurrence {
   /** Posição na série, começando em 1. */
   sequence: number
   seriesSize: number
-  /** A série continua gerando meses: `seriesSize` é só o que já foi criado. */
+  /** A série continua gerando ocorrências: `seriesSize` é só o que já foi criado. */
   recurring: boolean
+  frequency: ForecastFrequency
   month: Month
+  /** Data esperada, `YYYY-MM-DD`. Nula quando a previsão só tem competência. */
+  day: string | null
   amountCents: number
   status: OccurrenceStatus
   displayStatus: OccurrenceDisplayStatus
@@ -394,10 +415,13 @@ export interface ForecastSeries {
   name: string | null
   expression: string
   mode: ForecastMode
-  /** Na recorrente, o valor de cada mês. */
+  /** Na recorrente, o valor de cada ocorrência. */
   totalCents: number
-  /** Repete todo mês até ser encerrada. */
+  /** Repete a cada período até ser encerrada. */
   recurring: boolean
+  frequency: ForecastFrequency
+  /** Dia do mês de uma previsão mensal com dia; nulo nas demais. */
+  dayOfMonth: number | null
   startMonth: Month
   createdAt: string
   occurrences: ForecastOccurrence[]
@@ -406,7 +430,14 @@ export interface ForecastSeries {
 export interface ForecastCreateInput {
   expression: string
   name?: string | null
+  /** Padrão: mensal. */
+  frequency?: ForecastFrequency
+  /** Só na mensal. */
   startMonth?: Month
+  /** Só na mensal, opcional: fixa o dia de cada competência (1 a 31). */
+  dayOfMonth?: number
+  /** Data da primeira ocorrência. Obrigatória na semanal e na diária. */
+  startDay?: string
 }
 
 export type ForecastScope = 'one' | 'future'
@@ -414,10 +445,132 @@ export type ForecastScope = 'one' | 'future'
 export interface OccurrenceUpdateInput {
   scope: ForecastScope
   amountCents?: number
+  /** Só na mensal. */
   month?: Month
+  /** Nova data; `null` tira o dia (só na mensal). */
+  day?: string | null
 }
 
 export type OccurrenceManualStatus = 'expected' | 'received_manual' | 'ignored'
+
+// --- Assinaturas ------------------------------------------------------------
+
+export type SubscriptionCadence = 'weekly' | 'monthly' | 'yearly'
+/** `suggested` espera a confirmação do vínculo; `dismissed` não volta a ser sugerida. */
+export type SubscriptionStatus = 'suggested' | 'confirmed' | 'dismissed' | 'ended'
+
+export interface SubscriptionCharge {
+  transactionId: string
+  date: string
+  description: string
+  amountCents: number
+  /** Vinculada à mão pelo usuário (a detecção não mexe nela). */
+  manual: boolean
+}
+
+/** Saída do extrato que pode ser vinculada à mão como cobrança de uma assinatura. */
+export interface SubscriptionChargeCandidate {
+  transactionId: string
+  date: string
+  description: string
+  amountCents: number
+  bank: BankRef
+  /** "Conta" ou "Cartão final 0422". */
+  accountLabel: string
+  /** Já é cobrança de outra assinatura: precisa ser desvinculada lá antes. */
+  linkedTo: { subscriptionId: number; name: string } | null
+}
+
+export interface Subscription {
+  id: number
+  name: string
+  /** Domínio do serviço, de onde vem o logotipo. Nulo quando não se sabe. */
+  domain: string | null
+  cadence: SubscriptionCadence
+  /** Valor da cobrança mais recente, sempre positivo. */
+  amountCents: number
+  status: SubscriptionStatus
+  /** Onde a cobrança cai. Nulos se a conta foi removida. */
+  bank: BankRef | null
+  accountLabel: string | null
+  onCard: boolean
+  lastChargeDate: string
+  /** Próxima cobrança esperada, pela cadência. */
+  nextChargeDate: string
+  /** Sem cobrança há mais de dois ciclos: provavelmente foi cancelada. */
+  stale: boolean
+  /** Cobranças vinculadas, da mais recente para a mais antiga. */
+  charges: SubscriptionCharge[]
+}
+
+export interface SubscriptionList {
+  /** Sugeridas e confirmadas. Dispensadas e encerradas não aparecem. */
+  subscriptions: Subscription[]
+  /** Quanto as confirmadas e ativas custam por mês (semanal e anual convertidas). */
+  monthlyCents: number
+}
+
+export interface SubscriptionUpdateInput {
+  name?: string
+  /** Endereço do serviço; `null` remove o logotipo. */
+  domain?: string | null
+  /** De quanto em quanto tempo a cobrança vem. A próxima data passa a seguir a nova frequência. */
+  cadence?: SubscriptionCadence
+}
+
+// --- Calendário -------------------------------------------------------------
+
+/** Fechamento da fatura de um banco: a partir deste dia as compras vão para a seguinte. */
+export interface BillClosingEvent {
+  kind: 'bill_closing'
+  date: string
+  bank: BankRef
+  amountCents: number
+  /** O banco ainda não entregou esta fatura: a data repete o ciclo anterior. */
+  estimated: boolean
+}
+
+export interface BillDueEvent {
+  kind: 'bill_due'
+  date: string
+  bank: BankRef
+  amountCents: number
+  status: BillStatus
+  estimated: boolean
+}
+
+export interface SubscriptionEvent {
+  kind: 'subscription'
+  date: string
+  subscriptionId: number
+  name: string
+  domain: string | null
+  amountCents: number
+  /** `true`: cobrança já lançada. `false`: esperada pela cadência. */
+  charged: boolean
+  bank: BankRef | null
+}
+
+/** Previsão com dia definido. As que só têm competência não entram no calendário. */
+export interface ForecastEvent {
+  kind: 'forecast'
+  date: string
+  occurrenceId: number
+  name: string | null
+  /** Assinado: negativo é saída. */
+  amountCents: number
+  status: OccurrenceDisplayStatus
+}
+
+export type CalendarEvent = BillClosingEvent | BillDueEvent | SubscriptionEvent | ForecastEvent
+
+export interface CalendarRange {
+  from: string
+  to: string
+  today: string
+  /** Em ordem de data. */
+  events: CalendarEvent[]
+}
 
 // --- Conciliação ------------------------------------------------------------
 

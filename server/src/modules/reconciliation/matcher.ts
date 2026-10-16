@@ -4,19 +4,30 @@
  * Baixa automática só acontece quando não há margem para dúvida: na
  * competência esperada existe uma única previsão e uma única transação com
  * aquele valor exato. Todo o resto vira sugestão para revisão humana.
+ *
+ * Previsões com dia passam antes por um pareamento por data: o lançamento de
+ * valor exato dentro da margem de dias baixa a previsão, desde que nenhum dos
+ * dois tenha outro par possível. O que sobra segue a regra da competência.
  */
 import type { MatchReason } from '../../../../shared/api.ts'
+import { daysBetween } from '../../../../shared/days.ts'
 import { monthDiff, type Month } from '../../../../shared/months.ts'
 
 export interface OpenOccurrence {
   id: number
   month: Month
+  /** Data esperada, quando a previsão tem dia. */
+  day?: string | null
+  /** Margem de dias em torno de `day` para a baixa automática. */
+  toleranceDays?: number
   amountCents: number
 }
 
 export interface CreditCandidate {
   id: string
   month: Month
+  /** Data do lançamento; sem ela, só vale a regra da competência. */
+  date?: string
   amountCents: number
 }
 
@@ -46,8 +57,26 @@ export function planMatches(
 
   const amounts = new Set(occurrences.map((o) => o.amountCents))
   for (const amount of amounts) {
-    const sameAmountOccurrences = occurrences.filter((o) => o.amountCents === amount)
-    const sameAmountTransactions = transactions.filter((t) => t.amountCents === amount)
+    const everyOccurrence = occurrences.filter((o) => o.amountCents === amount)
+    const everyTransaction = transactions.filter((t) => t.amountCents === amount)
+    if (!everyTransaction.length) continue
+
+    // 0. Previsões com dia: lançamento dentro da margem, sem outro par possível dos dois lados.
+    const inWindow = (o: OpenOccurrence, t: CreditCandidate) =>
+      !!o.day && !!t.date && Math.abs(daysBetween(o.day, t.date)) <= (o.toleranceDays ?? 0)
+    const byDay = new Map<number, string>()
+    for (const occurrence of everyOccurrence) {
+      const near = everyTransaction.filter((t) => inWindow(occurrence, t))
+      const only = near.length === 1 ? near[0]! : null
+      if (!only || !allowed(occurrence, only)) continue
+      const rivals = everyOccurrence.filter((o) => (o.day ? inWindow(o, only) : o.month === only.month))
+      if (rivals.length === 1) byDay.set(occurrence.id, only.id)
+    }
+    for (const [occurrenceId, transactionId] of byDay) plan.auto.push({ occurrenceId, transactionId })
+
+    const taken = new Set(byDay.values())
+    const sameAmountOccurrences = everyOccurrence.filter((o) => !byDay.has(o.id))
+    const sameAmountTransactions = everyTransaction.filter((t) => !taken.has(t.id))
     if (!sameAmountTransactions.length) continue
 
     const settledOccurrences = new Set<number>()

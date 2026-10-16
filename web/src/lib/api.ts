@@ -7,6 +7,7 @@ import type {
   AccountSummary,
   ApiErrorBody,
   AppSettings,
+  CalendarRange,
   Category,
   Connection,
   ConnectSession,
@@ -19,7 +20,12 @@ import type {
   OccurrenceUpdateInput,
   ForecastScope,
   ReconciliationQueue,
+  RefreshResult,
   SetupStatus,
+  Subscription,
+  SubscriptionChargeCandidate,
+  SubscriptionList,
+  SubscriptionUpdateInput,
   SyncResponse,
   SyncState,
   TransactionOverrideInput,
@@ -107,7 +113,7 @@ export const api = {
     list: () => request<Connection[]>('GET', '/pluggy/connections'),
     connectSession: (itemId?: string) => request<ConnectSession>('POST', '/pluggy/connect-token', { itemId }),
     register: (itemId: string) => request<Connection[]>('POST', '/pluggy/items', { itemId }),
-    refresh: (itemId: string) => request<Connection[]>('POST', `/pluggy/connections/${itemId}/refresh`),
+    refresh: (itemId: string) => request<RefreshResult>('POST', `/pluggy/connections/${itemId}/refresh`),
     remove: (itemId: string) => request<Connection[]>('DELETE', `/pluggy/connections/${itemId}`),
   },
   sync: {
@@ -134,6 +140,23 @@ export const api = {
       request<void>('DELETE', `/forecasts/occurrences/${id}${queryString({ scope })}`),
     setStatus: (id: number, status: OccurrenceManualStatus) =>
       request<void>('POST', `/forecasts/occurrences/${id}/status`, { status }),
+  },
+  calendar: (from: string, to: string) => request<CalendarRange>('GET', `/calendar${queryString({ from, to })}`),
+  subscriptions: {
+    list: () => request<SubscriptionList>('GET', '/subscriptions'),
+    /** Marca a saída como assinatura; entram junto as compras de mesmo valor no mesmo lugar. */
+    mark: (transactionId: string) => request<Subscription>('POST', '/subscriptions', { transactionId }),
+    confirm: (id: number, input: SubscriptionUpdateInput = {}) =>
+      request<Subscription>('POST', `/subscriptions/${id}/confirm`, input),
+    dismiss: (id: number) => request<void>('POST', `/subscriptions/${id}/dismiss`),
+    end: (id: number) => request<void>('POST', `/subscriptions/${id}/end`),
+    update: (id: number, input: SubscriptionUpdateInput) => request<Subscription>('PATCH', `/subscriptions/${id}`, input),
+    searchCharges: (id: number, q: string) =>
+      request<SubscriptionChargeCandidate[]>('GET', `/subscriptions/${id}/candidates${queryString({ q })}`),
+    linkCharge: (id: number, transactionId: string) =>
+      request<Subscription>('POST', `/subscriptions/${id}/charges`, { transactionId }),
+    unlinkCharge: (id: number, transactionId: string) =>
+      request<void>('DELETE', `/subscriptions/${id}/charges/${transactionId}`),
   },
   reconciliation: {
     queue: () => request<ReconciliationQueue>('GET', '/reconciliation'),

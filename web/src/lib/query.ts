@@ -27,11 +27,15 @@ export const keys = {
   accounts: ['accounts'] as const,
   forecasts: ['forecasts'] as const,
   reconciliation: ['reconciliation'] as const,
+  subscriptions: ['subscriptions'] as const,
+  /** Fica sob `subscriptions`: vincular ou sincronizar recarrega a busca também. */
+  subscriptionCandidates: (id: number, q: string) => ['subscriptions', id, 'candidates', q] as const,
+  calendar: (from: string, to: string) => ['calendar', from, to] as const,
 }
 
 /** Tudo que depende dos lançamentos: recarrega depois de sincronizar ou corrigir algo. */
 export function invalidateLedger() {
-  for (const key of ['dashboard', 'transactions', 'forecasts', 'reconciliation', 'connections', 'accounts', 'categories', 'sync']) {
+  for (const key of ['dashboard', 'transactions', 'forecasts', 'reconciliation', 'subscriptions', 'calendar', 'connections', 'accounts', 'categories', 'sync']) {
     void queryClient.invalidateQueries({ queryKey: [key] })
   }
 }

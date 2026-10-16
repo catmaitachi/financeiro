@@ -111,12 +111,21 @@ export class ConnectionsService {
     this.#settleThenSync(itemId)
   }
 
-  /** Pede uma nova coleta à instituição; os dados chegam em segundo plano. */
-  async refresh(itemId: string) {
+  /**
+   * Pede uma nova coleta à instituição; os dados chegam em segundo plano.
+   * Conexões que não aceitam o pedido (o MeuPluggy) só copiam de novo o que o
+   * provedor já tem. Devolve se a coleta foi de fato pedida.
+   */
+  async refresh(itemId: string): Promise<{ requested: boolean }> {
     this.#require(itemId)
     const item = await this.#deps.provider.refreshItem(itemId)
+    if (!item) {
+      await this.#deps.sync.run({ trigger: 'manual', itemIds: [itemId] })
+      return { requested: false }
+    }
     this.#deps.writer.upsertItem(item, this.#deps.clock().toISOString())
     this.#settleThenSync(itemId)
+    return { requested: true }
   }
 
   /** Remove a conexão na Pluggy e os dados dela neste Mac. */

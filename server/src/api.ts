@@ -12,7 +12,9 @@ import {
   mcpAdminRoutes,
   mcpRoutes,
   pluggyRoutes,
+  calendarRoutes,
   reconciliationRoutes,
+  subscriptionRoutes,
   settingsRoutes,
   setupRoutes,
   syncRoutes,
@@ -44,6 +46,8 @@ export function createApi(container: Container, guards: MiddlewareHandler[] = []
   api.route('/dashboard', dashboardRoutes(container))
   api.route('/forecasts', forecastRoutes(container))
   api.route('/reconciliation', reconciliationRoutes(container))
+  api.route('/subscriptions', subscriptionRoutes(container))
+  api.route('/calendar', calendarRoutes(container))
   api.route('/settings', settingsRoutes(container))
   api.route('/mcp', mcpAdminRoutes(container))
   api.route('/', ledgerRoutes(container))

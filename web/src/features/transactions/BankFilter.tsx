@@ -46,7 +46,7 @@ export function BankFilter({ filters, update }: BankFilterProps) {
         ]}
         value={selected?.id ?? ALL}
         // Trocar de banco desfaz o filtro de conta, que pertence ao banco anterior.
-        compactOnMobile
+        compactBelow="md"
         onChange={(bankId) => update({ bankId: bankId || undefined, accountId: undefined })}
       />
 

@@ -18,10 +18,19 @@ interface SegmentedProps<T extends string> {
   value: T
   onChange: (value: T) => void
   size?: 'sm' | 'md'
-  /** Esconde os rótulos em telas estreitas, deixando só os ícones. */
-  compactOnMobile?: boolean
+  /**
+   * Esconde os rótulos abaixo da largura dada, deixando só os ícones; na faixa
+   * seguinte mostra só o rótulo e, acima dela, os dois.
+   */
+  compactBelow?: 'md' | 'lg'
   className?: string
 }
+
+/** As classes saem escritas por inteiro para o Tailwind encontrá-las. */
+const COMPACT = {
+  md: { icon: 'md:hidden lg:inline-flex', label: 'hidden md:inline' },
+  lg: { icon: 'lg:hidden xl:inline-flex', label: 'hidden lg:inline' },
+} as const
 
 /**
  * Escolha única entre poucas opções. É o padrão de seleção do produto: uma
@@ -34,7 +43,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
   size = 'md',
-  compactOnMobile = false,
+  compactBelow,
   className,
 }: SegmentedProps<T>) {
   const trackRef = useRef<HTMLDivElement>(null)
@@ -87,15 +96,15 @@ export function Segmented<T extends string>({
             )}
           >
             {option.icon ? (
-              // Só ícone no celular, só rótulo em telas médias, os dois nas largas.
-              <span className={cn('shrink-0', compactOnMobile && 'md:hidden lg:inline-flex')}>{option.icon}</span>
+              // Só ícone nas telas estreitas, só rótulo na faixa seguinte, os dois nas largas.
+              <span className={cn('shrink-0', compactBelow && COMPACT[compactBelow].icon)}>{option.icon}</span>
             ) : null}
             {option.shortLabel ? <span className="sm:hidden">{option.shortLabel}</span> : null}
             <span
               className={cn(
                 'truncate',
                 option.shortLabel ? 'hidden sm:inline' : undefined,
-                compactOnMobile && option.icon ? 'hidden md:inline' : undefined,
+                compactBelow && option.icon ? COMPACT[compactBelow].label : undefined,
               )}
             >
               {option.label}

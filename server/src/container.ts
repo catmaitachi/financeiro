@@ -4,6 +4,7 @@
  * provedor e cofre sem tocar nas regras.
  */
 import type { Config } from './config.ts'
+import { CalendarService } from './modules/calendar/calendar-service.ts'
 import { ConnectionsService } from './modules/connections/connections-service.ts'
 import { CredentialSource } from './modules/credentials/credential-source.ts'
 import { CredentialsService } from './modules/credentials/credentials-service.ts'
@@ -18,6 +19,7 @@ import type { McpTokenStore } from './modules/mcp/token-store.ts'
 import { PluggyProvider } from './modules/provider/pluggy/pluggy-provider.ts'
 import type { FinancialProvider } from './modules/provider/provider.ts'
 import { ReconciliationService } from './modules/reconciliation/reconciliation-service.ts'
+import { SubscriptionService } from './modules/subscriptions/subscription-service.ts'
 import { SettingsRepo } from './modules/settings/settings-repo.ts'
 import { SyncService } from './modules/sync/sync-service.ts'
 import type { Db } from './platform/db/database.ts'
@@ -62,6 +64,8 @@ export function createContainer(options: ContainerOptions) {
   // O painel lê as ocorrências direto do banco: as recorrentes precisam estar em dia desde a partida.
   forecasts.extendRecurring()
   const reconciliation = new ReconciliationService(db, clock)
+  const subscriptions = new SubscriptionService(db, clock, banks, ledger)
+  const calendar = new CalendarService(db, clock, banks, forecasts, subscriptions)
   const dashboard = new DashboardService(db, clock, banks, () => reconciliation.reviewCount())
 
   const sync = new SyncService({
@@ -69,6 +73,7 @@ export function createContainer(options: ContainerOptions) {
     provider,
     writer,
     reconciliation,
+    subscriptions,
     clock,
     logger,
     initialHistoryDays: config.initialHistoryDays,
@@ -99,6 +104,8 @@ export function createContainer(options: ContainerOptions) {
     ledger,
     forecasts,
     reconciliation,
+    subscriptions,
+    calendar,
     dashboard,
     sync,
     connections,

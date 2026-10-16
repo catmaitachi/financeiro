@@ -3,6 +3,7 @@ import {
   ArrowDownLeftIcon,
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
+  CaretDownIcon,
   CheckCircleIcon,
   EyeSlashIcon,
   LinkBreakIcon,
@@ -16,11 +17,12 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState, type FormEvent } from 'react'
 import type { ForecastOccurrence, ForecastScope } from '@shared/api'
 import { ForecastExpressionError, parseAmountToCents } from '@shared/forecast-expression'
+import { dayOfMonth, withDayOfMonth } from '@shared/days'
 import { addMonths, type Month } from '@shared/months'
-import { collapseVariants, itemVariants } from '@/design/motion'
+import { collapseVariants, duration, ease, itemVariants } from '@/design/motion'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
-import { formatAmountInput, formatBRL, formatDay, formatMonth } from '@/lib/format'
+import { formatAmountInput, formatBRL, formatDay, formatMonth, plural } from '@/lib/format'
 import { invalidateLedger } from '@/lib/query'
 import { Badge } from '@/ui/Badge'
 import { Button } from '@/ui/Button'
@@ -45,6 +47,9 @@ function useForecastAction<T>(action: (input: T) => Promise<unknown>, done: stri
   })
 }
 
+const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, index) => index + 1)
+const FREQUENCY_LABEL = { monthly: 'Mensal', weekly: 'Semanal', daily: 'Diária' } as const
+
 interface EditorProps {
   occurrence: ForecastOccurrence
   hasLater: boolean
@@ -54,6 +59,10 @@ interface EditorProps {
 function OccurrenceEditor({ occurrence, hasLater, onClose }: EditorProps) {
   const [amount, setAmount] = useState(formatAmountInput(occurrence.amountCents))
   const [month, setMonth] = useState<Month>(occurrence.month)
+  const monthly = occurrence.frequency === 'monthly'
+  // Na mensal o dia é um dia do mês, opcional; na semanal e na diária é a própria data.
+  const [monthDay, setMonthDay] = useState<number | null>(occurrence.day ? dayOfMonth(occurrence.day) : null)
+  const [date, setDate] = useState(occurrence.day ?? '')
   const [scope, setScope] = useState<ForecastScope>('one')
   const [error, setError] = useState<string | null>(null)
   const months = useMemo(
@@ -62,7 +71,8 @@ function OccurrenceEditor({ occurrence, hasLater, onClose }: EditorProps) {
   )
 
   const save = useForecastAction(
-    (input: { amountCents?: number; month?: Month }) => api.forecasts.updateOccurrence(occurrence.id, { scope, ...input }),
+    (input: { amountCents?: number; month?: Month; day?: string | null }) =>
+      api.forecasts.updateOccurrence(occurrence.id, { scope, ...input }),
     'Previsão atualizada.',
     onClose,
   )
@@ -77,17 +87,20 @@ function OccurrenceEditor({ occurrence, hasLater, onClose }: EditorProps) {
       return
     }
     setError(null)
+    const day = monthly ? (monthDay === null ? null : withDayOfMonth(month, monthDay)) : date
+    if (!monthly && !date) return
     const changes = {
       amountCents: amountCents !== occurrence.amountCents ? amountCents : undefined,
-      month: month !== occurrence.month ? month : undefined,
+      month: monthly && month !== occurrence.month ? month : undefined,
+      day: day !== occurrence.day ? day : undefined,
     }
-    if (changes.amountCents === undefined && changes.month === undefined) return onClose()
+    if (Object.values(changes).every((change) => change === undefined)) return onClose()
     save.mutate(changes)
   }
 
   return (
     <form onSubmit={submit} className="surface-sunken mt-3 flex flex-col gap-4 rounded-md p-4" noValidate>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className={cn('grid gap-4', monthly ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7.5rem]' : 'sm:grid-cols-2')}>
         <TextField
           label="Valor"
           value={amount}
@@ -97,13 +110,37 @@ function OccurrenceEditor({ occurrence, hasLater, onClose }: EditorProps) {
           error={error}
           data-autofocus
         />
-        <SelectField label="Mês" value={month} onChange={(event) => setMonth(event.target.value)}>
-          {months.map((option) => (
-            <option key={option} value={option}>
-              {formatMonth(option)}
-            </option>
-          ))}
-        </SelectField>
+        {monthly ? (
+          <>
+            <SelectField label="Mês" value={month} onChange={(event) => setMonth(event.target.value)}>
+              {months.map((option) => (
+                <option key={option} value={option}>
+                  {formatMonth(option)}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField
+              label="Dia"
+              value={monthDay ?? ''}
+              onChange={(event) => setMonthDay(event.target.value ? Number(event.target.value) : null)}
+            >
+              <option value="">Sem dia</option>
+              {DAYS_OF_MONTH.map((day) => (
+                <option key={day} value={day}>
+                  {day}
+                </option>
+              ))}
+            </SelectField>
+          </>
+        ) : (
+          <TextField
+            label="Data"
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            error={date ? undefined : 'Escolha a data.'}
+          />
+        )}
       </div>
       {hasLater ? (
         <Segmented
@@ -156,7 +193,7 @@ function OccurrenceRow({ occurrence }: { occurrence: ForecastOccurrence }) {
   const actions: MenuItem[] = []
   if (open) {
     actions.push(
-      { label: 'Alterar valor ou mês', icon: <PencilSimpleIcon />, onSelect: () => setEditing(true) },
+      { label: 'Alterar valor ou data', icon: <PencilSimpleIcon />, onSelect: () => setEditing(true) },
       { label: outflow ? 'Marcar como paga' : 'Marcar como recebida', icon: <CheckCircleIcon />, onSelect: () => setStatus.mutate('received_manual') },
       { label: 'Ignorar', icon: <EyeSlashIcon />, onSelect: () => setStatus.mutate('ignored') },
       { label: 'Cancelar esta', icon: <ProhibitIcon />, onSelect: () => cancel.mutate('one') },
@@ -205,7 +242,12 @@ function OccurrenceRow({ occurrence }: { occurrence: ForecastOccurrence }) {
             <Badge tone={status.tone} icon={status.icon}>
               {status.label}
             </Badge>
-            {occurrence.recurring ? <Badge icon={<ArrowsClockwiseIcon size={12} />}>Recorrente</Badge> : null}
+            {occurrence.day ? <span className="tabular text-sm text-text-2">{formatDay(occurrence.day)}</span> : null}
+            {occurrence.recurring ? (
+              <Badge icon={<ArrowsClockwiseIcon size={12} />}>
+                {occurrence.frequency === 'monthly' ? 'Recorrente' : FREQUENCY_LABEL[occurrence.frequency]}
+              </Badge>
+            ) : null}
             {linked ? (
               <span className="truncate text-sm text-text-3">
                 {formatDay(linked.date)}, {linked.description}
@@ -282,6 +324,96 @@ function OccurrenceRow({ occurrence }: { occurrence: ForecastOccurrence }) {
   )
 }
 
+const counts = (occurrence: ForecastOccurrence) =>
+  occurrence.displayStatus !== 'cancelled' && occurrence.displayStatus !== 'ignored'
+
+/** As ocorrências de uma série semanal ou diária dentro de um mês: uma linha que se abre. */
+function SeriesGroup({ occurrences }: { occurrences: ForecastOccurrence[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const first = occurrences[0]!
+  const total = occurrences.filter(counts).reduce((sum, item) => sum + item.amountCents, 0)
+  const open = occurrences.filter((item) => isOpen(item.displayStatus)).length
+  const outflow = first.amountCents < 0
+
+  return (
+    <motion.li layout="position" variants={itemVariants} initial="initial" animate="enter" exit="exit">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left transition-colors duration-200 hover:bg-fill-hover focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        <span
+          className={cn(
+            'surface-sunken hidden size-9 shrink-0 items-center justify-center rounded-full sm:flex',
+            outflow ? 'text-data-expense' : 'text-data-income',
+          )}
+          aria-hidden
+        >
+          <ArrowsClockwiseIcon size={16} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium text-text">{first.seriesName ?? 'Previsão sem nome'}</span>
+          <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-3">
+            <Badge icon={<ArrowsClockwiseIcon size={12} />}>{FREQUENCY_LABEL[first.frequency]}</Badge>
+            <span>
+              {plural(occurrences.length, 'previsão', 'previsões')}, {open} em aberto
+            </span>
+          </span>
+        </span>
+        <span className="tabular shrink-0 text-md font-medium text-text">{formatBRL(total)}</span>
+        <motion.span
+          animate={{ rotate: expanded ? 180 : 0 }}
+          transition={{ duration: duration.state, ease: ease.out }}
+          className="flex size-9 shrink-0 items-center justify-center text-text-3"
+          aria-hidden
+        >
+          <CaretDownIcon size={16} />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.ul
+            key="itens"
+            variants={collapseVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
+            className="ml-3 flex flex-col overflow-hidden border-l border-edge sm:ml-7"
+          >
+            {occurrences.map((occurrence) => (
+              <OccurrenceRow key={occurrence.id} occurrence={occurrence} />
+            ))}
+          </motion.ul>
+        ) : null}
+      </AnimatePresence>
+    </motion.li>
+  )
+}
+
+type MonthEntry = { key: string; sort: string; occurrences: ForecastOccurrence[]; grouped: boolean }
+
+/** Dentro do mês: primeiro o que não tem dia, depois por data. Séries semanais e diárias viram um grupo. */
+function monthEntries(items: ForecastOccurrence[]): MonthEntry[] {
+  const entries: MonthEntry[] = []
+  const groups = new Map<number, MonthEntry>()
+  for (const occurrence of [...items].sort((a, b) => (a.day ?? '').localeCompare(b.day ?? '') || a.id - b.id)) {
+    if (occurrence.frequency === 'monthly') {
+      entries.push({ key: `o${occurrence.id}`, sort: occurrence.day ?? '', occurrences: [occurrence], grouped: false })
+      continue
+    }
+    const group = groups.get(occurrence.seriesId)
+    if (group) {
+      group.occurrences.push(occurrence)
+      continue
+    }
+    const created = { key: `s${occurrence.seriesId}`, sort: occurrence.day ?? '', occurrences: [occurrence], grouped: true }
+    groups.set(occurrence.seriesId, created)
+    entries.push(created)
+  }
+  return entries
+}
+
 /** Previsões agrupadas por competência, com o total de cada mês. */
 export function OccurrenceList({ occurrences }: { occurrences: ForecastOccurrence[] }) {
   const groups = useMemo(() => {
@@ -291,32 +423,35 @@ export function OccurrenceList({ occurrences }: { occurrences: ForecastOccurrenc
       if (list) list.push(occurrence)
       else byMonth.set(occurrence.month, [occurrence])
     }
-    return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b))
+    return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, items]) => ({
+      month,
+      total: items.filter(counts).reduce((sum, item) => sum + item.amountCents, 0),
+      entries: monthEntries(items),
+    }))
   }, [occurrences])
 
   return (
     <div className="flex flex-col gap-6">
       <AnimatePresence initial={false} mode="popLayout">
-        {groups.map(([month, items]) => {
-          const total = items
-            .filter((item) => item.displayStatus !== 'cancelled' && item.displayStatus !== 'ignored')
-            .reduce((sum, item) => sum + item.amountCents, 0)
-          return (
-            <motion.section key={month} layout="position" variants={itemVariants} initial="initial" animate="enter" exit="exit">
-              <header className="flex items-baseline justify-between gap-4 border-b border-edge px-3 pb-2">
-                <h2 className="font-sans text-base font-semibold tracking-normal text-text-2">{formatMonth(month)}</h2>
-                <p className="tabular text-sm text-text-3">{formatBRL(total)}</p>
-              </header>
-              <ul className="flex flex-col">
-                <AnimatePresence initial={false} mode="popLayout">
-                  {items.map((occurrence) => (
-                    <OccurrenceRow key={occurrence.id} occurrence={occurrence} />
-                  ))}
-                </AnimatePresence>
-              </ul>
-            </motion.section>
-          )
-        })}
+        {groups.map(({ month, total, entries }) => (
+          <motion.section key={month} layout="position" variants={itemVariants} initial="initial" animate="enter" exit="exit">
+            <header className="flex items-baseline justify-between gap-4 border-b border-edge px-3 pb-2">
+              <h2 className="font-sans text-base font-semibold tracking-normal text-text-2">{formatMonth(month)}</h2>
+              <p className="tabular text-sm text-text-3">{formatBRL(total)}</p>
+            </header>
+            <ul className="flex flex-col">
+              <AnimatePresence initial={false} mode="popLayout">
+                {entries.map((entry) =>
+                  entry.grouped && entry.occurrences.length > 1 ? (
+                    <SeriesGroup key={entry.key} occurrences={entry.occurrences} />
+                  ) : (
+                    <OccurrenceRow key={entry.key} occurrence={entry.occurrences[0]!} />
+                  ),
+                )}
+              </AnimatePresence>
+            </ul>
+          </motion.section>
+        ))}
       </AnimatePresence>
     </div>
   )

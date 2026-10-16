@@ -93,7 +93,8 @@ export function TransactionFilterBar({ filters, update, clear, active, future, f
           label="Buscar"
           hideLabel
           type="search"
-          placeholder="Buscar por descrição ou estabelecimento"
+          placeholder="Buscar por descrição, valor, data ou conta"
+          title="Cada palavra precisa bater: netflix 44,90, 12/09 nubank, 09/2026"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           leading={<MagnifyingGlassIcon />}

@@ -60,11 +60,21 @@ As transações de todos os bancos ficam numa linha do tempo só, da mais recent
 
 </div>
 
-Uma previsão é uma expressão curta: `1.200*6` são seis meses de R$ 1.200,00, e `2.500/3` são R$ 2.500,00 divididos em três parcelas, com os centavos ajustados. Quando a movimentação chega ao banco, o Financeiro dá a baixa sozinho, mas só se houver uma única previsão e uma única movimentação possíveis, com a mesma direção, o mesmo valor e a competência esperada. Valor repetido, mês adiantado ou atrasado vai para a fila de revisão, e um vínculo que você desfez ou recusou não é refeito sozinho.
+Uma previsão é uma expressão curta: `1.200*6` são seis meses de R$ 1.200,00, e `2.500/3` são R$ 2.500,00 divididos em três parcelas, com os centavos ajustados. A frequência é mensal, semanal ou diária, e a contagem segue a frequência (`50*4` semanal são quatro semanas). Na mensal, o dia é opcional; na semanal e na diária, a previsão começa numa data. Só as previsões com dia aparecem no calendário. Quando a movimentação chega ao banco, o Financeiro dá a baixa sozinho, mas só se houver uma única previsão e uma única movimentação possíveis, com a mesma direção, o mesmo valor e a competência esperada. Valor repetido, mês adiantado ou atrasado vai para a fila de revisão, e um vínculo que você desfez ou recusou não é refeito sozinho.
 
 <br>
 
-<h2 align="center">04 · Bancos conectados</h2>
+<h2 align="center">04 · Calendário e assinaturas</h2>
+
+O Calendário mostra, dia a dia, o fechamento e o vencimento das faturas de cada banco (estimados pelo ciclo anterior enquanto o banco não entrega a fatura), as cobranças das assinaturas e as previsões com dia. O Painel traz o resumo dos próximos sete dias.
+
+Assinaturas tem seção própria. À esquerda ficam as ativas, com o custo mensal somado; à direita, as compras recorrentes que ainda esperam o seu sim e uma busca no extrato para marcar uma compra que a detecção não pegou. No detalhe de qualquer saída à vista, em Transações, **Marcar como assinatura** cria a assinatura com aquela compra, puxa as outras de mesmo valor no mesmo estabelecimento e passa a anexar as próximas a cada sincronização. Se o estabelecimento já tem assinatura, a compra entra nela. A frequência sai do intervalo entre as compras (sem histórico, começa mensal) e pode ser trocada para semanal, mensal ou anual ali mesmo ou no detalhe da assinatura.
+
+As assinaturas são encontradas nas cobranças que se repetem no mesmo estabelecimento, com valor parecido e intervalo regular (semanal, mensal ou anual). Elas chegam como sugestão e só valem depois que você confirma o vínculo; uma sugestão dispensada não volta. Confirmada, a assinatura recebe sozinha as cobranças seguintes e acompanha reajustes. O logotipo vem do site do serviço: os conhecidos já têm o endereço no catálogo (`shared/services.ts`) e os demais aceitam um site informado por você. A imagem é buscada pelo navegador no serviço de ícones do Google, que recebe só o domínio. Assinaturas não entram no saldo previsto, porque a cobrança no cartão já está na fatura.
+
+<br>
+
+<h2 align="center">05 · Bancos conectados</h2>
 
 <div align="center">
 
@@ -159,9 +169,9 @@ O caminho mais curto: em **Conexões e ajustes → Agentes (MCP)**, escolha o fo
 claude mcp add --transport http financeiro http://127.0.0.1:8787/mcp --header "Authorization: Bearer <token>"
 ```
 
-Na leitura, os agentes veem o resumo do mês, contas e cartões, transações com filtros (sem período, a lista para em hoje, como na tela), categorias, previsões, fila de conciliação, estado da sincronização e conexões, com valores em centavos inteiros.
+Na leitura, os agentes veem o resumo do mês, contas e cartões, transações com filtros (sem período, a lista para em hoje, como na tela), categorias, previsões, assinaturas, calendário, fila de conciliação, estado da sincronização e conexões, com valores em centavos inteiros.
 
-A escrita vem desligada. Ao ligar **Leitura e escrita**, entram: sincronizar, criar previsão, recategorizar transação, confirmar, rejeitar ou desfazer conciliação e marcar o estado de uma ocorrência. As ferramentas de escrita são anotadas como "não somente leitura" para o cliente pedir a sua confirmação. Apagar previsões, mexer em conexões e em credenciais da Pluggy não está disponível para agentes.
+A escrita vem desligada. Ao ligar **Leitura e escrita**, entram: sincronizar, criar previsão, recategorizar transação, confirmar, rejeitar ou desfazer conciliação, marcar o estado de uma ocorrência, marcar uma transação como assinatura e vincular ou desvincular cobranças de assinaturas. As ferramentas de escrita são anotadas como "não somente leitura" para o cliente pedir a sua confirmação. Apagar previsões, mexer em conexões e em credenciais da Pluggy não está disponível para agentes.
 
 <details>
 <summary><b>Token e limites do interruptor de escrita</b></summary>
@@ -199,7 +209,7 @@ Os números seguem regras fixas, cobertas por testes. Se um total não bate com 
 - Transações: a lista vai da mais recente para a mais antiga e, sem filtro de período, para em hoje: parcelas futuras de cartão só aparecem com "Incluir parcelas futuras".
 - Dupla contagem: pagamentos de fatura e transferências entre contas próprias são reconhecidos pela categoria da Pluggy, pelo documento da outra ponta e, por último, pelo pareamento de saída e entrada de mesmo valor em contas diferentes com até um dia de distância.
 - Datas: lançamentos que a Pluggy entrega como meia-noite UTC são lidos como a própria data, para um lançamento do dia 1º não mudar de competência.
-- Conciliação: a baixa automática só com uma única previsão e uma única movimentação confirmada, de mesma direção e valor, na competência esperada. Valor repetido, movimentação adiantada em até um mês ou atrasada em até três vão para revisão. Um vínculo desfeito ou recusado não é refeito sozinho.
+- Conciliação: previsões com dia são pareadas antes pela data, com margem de três dias (zero na diária), quando nem a previsão nem a movimentação têm outro par possível. Fora isso, a baixa automática só com uma única previsão e uma única movimentação confirmada, de mesma direção e valor, na competência esperada. Valor repetido, movimentação adiantada em até um mês ou atrasada em até três vão para revisão. Um vínculo desfeito ou recusado não é refeito sozinho.
 
 </details>
 
@@ -210,7 +220,7 @@ Os números seguem regras fixas, cobertas por testes. Se um total não bate com 
 O código é dividido em módulos de domínio, com portas e adaptadores nas bordas, para o projeto crescer sem reescrita.
 
 ```
-shared/      contrato HTTP e regras puras usadas pelos dois lados (meses, gramática de previsões)
+shared/      contrato HTTP e regras puras usadas pelos dois lados (meses, dias, gramática de previsões, catálogo de bancos e de serviços)
 server/src/
   platform/  banco, HTTP, relógio, log: infraestrutura sem regra de negócio
   modules/
@@ -222,6 +232,8 @@ server/src/
     dashboard/       totais e estatísticas por competência
     forecasts/       séries e ocorrências de previsão
     reconciliation/  conciliação entre previsões e movimentações
+    subscriptions/   detecção de cobranças recorrentes e assinaturas confirmadas
+    calendar/        o que acontece em cada dia: faturas, assinaturas e previsões com dia
     settings/        configurações não secretas
     mcp/             ferramentas dos agentes (MCP), token de acesso e kit de conexão
   container.ts       composição: o único arquivo que conhece todos os módulos
@@ -295,7 +307,7 @@ Variáveis opcionais, no `.env`: `FINANCEIRO_PORT` (padrão `8787`) e `FINANCEIR
 
 ### Testes
 
-Os testes cobrem o parser de previsões (divisão e centavos), competência de cartão (fatura, previsão e ausência), dupla contagem (pagamento de fatura e transferências internas), conciliação (vínculo único, ambiguidade, mês incorreto, pendente, desfazer), sincronização (paginação, repetição, atualizações, exclusões, falha parcial) e o ciclo das credenciais.
+Os testes cobrem o parser de previsões (divisão e centavos), previsões com dia e frequência, detecção de assinaturas, calendário, competência de cartão (fatura, previsão e ausência), dupla contagem (pagamento de fatura e transferências internas), conciliação (vínculo único, ambiguidade, mês incorreto, pendente, desfazer), sincronização (paginação, repetição, atualizações, exclusões, falha parcial) e o ciclo das credenciais.
 
 O teste que grava no cofre de verdade do sistema só roda quando pedido, com valores fictícios em um serviço descartável:
 

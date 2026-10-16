@@ -10,8 +10,10 @@ import type {
   MonthTotals,
 } from '../../../../shared/api.ts'
 import { accountLabel, type BankRef } from '../../../../shared/banks.ts'
+import { shiftMonths } from '../../../../shared/days.ts'
 import { addMonths, monthDiff, monthOfDate, monthsEndingAt, type Month } from '../../../../shared/months.ts'
 import type { BankDirectory } from '../institutions/bank-directory.ts'
+import { cardBill, type CardBill } from '../ledger/bill-cycle.ts'
 import { BILL_MONTH } from '../ledger/bill-month.ts'
 import { all, get, type Db } from '../../platform/db/database.ts'
 import { currentMonth, todayLocal, type Clock } from '../../platform/time.ts'
@@ -44,13 +46,6 @@ const HISTORY_MONTHS = 12
 const UNCATEGORIZED = 'Sem categoria'
 const UNKNOWN_BANK: BankRef = { id: 'outro', name: 'Outro banco' }
 
-/** Desloca uma data civil em meses, mantendo o dia quando ele existe no mês de destino. */
-function shiftDate(date: string, months: number): string {
-  const month = addMonths(monthOfDate(date), months)
-  const lastDay = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate()
-  return `${month}-${String(Math.min(Number(date.slice(8, 10)), lastDay)).padStart(2, '0')}`
-}
-
 interface BillRow {
   due_date: string
   closing_date: string | null
@@ -79,12 +74,14 @@ export class DashboardService {
   }
 
   /**
-   * @param month competência exibida
+   * @param requested competência exibida; por padrão, o mês em foco
    * @param windowEnd último mês da faixa de 12 meses do histórico; por padrão,
    *   o mês seguinte ao atual (ou a própria competência, se ela for posterior)
    */
-  build(month: Month, windowEnd?: Month): Dashboard {
+  build(requested?: Month, windowEnd?: Month): Dashboard {
     const thisMonth = currentMonth(this.#clock)
+    const focusMonth = this.#focusMonth()
+    const month = requested ?? focusMonth
     const upcoming = addMonths(thisMonth, 1)
     const lastMonth = windowEnd ?? (month > upcoming ? month : upcoming)
     const previousMonth = addMonths(month, -1)
@@ -108,7 +105,8 @@ export class DashboardService {
     return {
       month,
       currentMonth: thisMonth,
-      banks: this.#bankSummaries(),
+      focusMonth,
+      banks: this.#bankSummaries(focusMonth),
       billYear: this.#billYear(month.slice(0, 4)),
       billCategories: this.#billCategories(month),
       bills: this.#bills(),
@@ -137,12 +135,34 @@ export class DashboardService {
   }
 
   /**
-   * Cada banco conectado com o saldo em conta, a fatura que vence neste mês e
-   * a do mês seguinte. Os cartões de um mesmo banco somam em uma fatura só.
+   * O mês em que o painel se concentra: o atual, até que todas as faturas que
+   * vencem nele estejam pagas; a partir daí, o seguinte. Sem fatura no mês, fica no atual.
    */
-  #bankSummaries(): BankSummary[] {
+  #focusMonth(): Month {
     const today = todayLocal(this.#clock)
     const thisMonth = monthOfDate(today)
+    const banks = this.#banks.byItem()
+    const byBank = new Map<string, BankBill[]>()
+    for (const card of all<{ id: string; item_id: string }>(
+      this.#db,
+      `SELECT id, item_id FROM accounts WHERE type = 'CREDIT' AND removed_at IS NULL`,
+    )) {
+      const bill = bankBill(cardBill(this.#db, card.id, thisMonth, today))
+      if (!bill) continue
+      const bankId = (banks.get(card.item_id) ?? UNKNOWN_BANK).id
+      byBank.set(bankId, [...(byBank.get(bankId) ?? []), bill])
+    }
+    const bills = [...byBank.values()].map(mergeBills)
+    const allPaid = bills.length > 0 && bills.every((bill) => bill?.status === 'paid')
+    return allPaid ? addMonths(thisMonth, 1) : thisMonth
+  }
+
+  /**
+   * Cada banco conectado com o saldo em conta, a fatura que vence no mês em
+   * foco e a do mês seguinte. Os cartões de um mesmo banco somam em uma fatura só.
+   */
+  #bankSummaries(focusMonth: Month): BankSummary[] {
+    const today = todayLocal(this.#clock)
     const banks = this.#banks.byItem()
     const summaries = new Map<string, BankSummary & { bills: BankBill[]; nexts: BankBill[] }>()
 
@@ -167,8 +187,8 @@ export class DashboardService {
         continue
       }
       summary.cards.push({ accountId: account.id, label: accountLabel(account), brand: account.brand })
-      const current = this.#cardBill(account.id, thisMonth, today)
-      const next = this.#cardBill(account.id, addMonths(thisMonth, 1), today)
+      const current = bankBill(cardBill(this.#db, account.id, focusMonth, today))
+      const next = bankBill(cardBill(this.#db, account.id, addMonths(focusMonth, 1), today))
       if (current) summary.bills.push(current)
       if (next) summary.nexts.push(next)
     }
@@ -176,73 +196,6 @@ export class DashboardService {
     return [...summaries.values()]
       .map(({ bills, nexts, ...summary }) => ({ ...summary, bill: mergeBills(bills), next: mergeBills(nexts) }))
       .sort((a, b) => (b.bill?.amountCents ?? 0) - (a.bill?.amountCents ?? 0) || a.bank.name.localeCompare(b.bank.name, 'pt-BR'))
-  }
-
-  /**
-   * A fatura de um cartão com vencimento no mês pedido.
-   *
-   * Se o banco já a entregou, valem o total e as datas dela. Se não, o valor é
-   * a soma das compras daquele ciclo e as datas repetem o ciclo da última
-   * fatura conhecida. A Pluggy não informa se uma fatura foi paga: considera-se
-   * paga quando o cartão recebeu um pagamento depois do fechamento dela.
-   */
-  #cardBill(accountId: string, month: Month, today: string): BankBill | null {
-    const record = get<BillRow>(
-      this.#db,
-      `SELECT due_date, closing_date, total_cents FROM bills
-        WHERE account_id = :accountId AND currency_code = 'BRL' AND substr(due_date, 1, 7) = :month
-        ORDER BY due_date DESC LIMIT 1`,
-      { accountId, month },
-    )
-    const last = get<BillRow>(
-      this.#db,
-      `SELECT due_date, closing_date, total_cents FROM bills
-        WHERE account_id = :accountId AND currency_code = 'BRL' ORDER BY due_date DESC LIMIT 1`,
-      { accountId },
-    )
-
-    let amountCents: number
-    let closing: string | null
-    let dueDate: string | null
-    if (record) {
-      amountCents = record.total_cents
-      closing = record.closing_date ?? record.due_date
-      dueDate = record.due_date
-    } else {
-      if (last && month < monthOfDate(last.due_date)) return null
-      const open = get<{ total: number | null; entries: number }>(
-        this.#db,
-        `${CARD_ENTRIES}
-         SELECT SUM(${EXPENSE}) AS total, COUNT(*) AS entries FROM card_entries e
-          WHERE e.account_id = :accountId AND e.bill_month = :month`,
-        { accountId, month },
-      )
-      if (!last && !open?.entries) return null
-      amountCents = open?.total ?? 0
-      const ahead = last ? monthDiff(monthOfDate(last.due_date), month) : 0
-      closing = last ? shiftDate(last.closing_date ?? last.due_date, ahead) : null
-      dueDate = last ? shiftDate(last.due_date, ahead) : null
-    }
-
-    const closed = closing !== null && closing < today
-    const paidOn = closed
-      ? (get<{ paid_on: string | null }>(
-          this.#db,
-          `SELECT MIN(local_date) AS paid_on FROM transactions
-            WHERE account_id = :accountId AND removed_at IS NULL AND kind = 'bill_payment' AND direction = 'in'
-              AND local_date >= :since AND local_date < :until`,
-          { accountId, since: closing, until: shiftDate(closing!, 1) },
-        )?.paid_on ?? null)
-      : null
-
-    return {
-      month,
-      amountCents,
-      status: paidOn ? 'paid' : closed ? 'closed' : 'open',
-      dueDate,
-      estimated: record === undefined,
-      paidOn,
-    }
   }
 
   /** As faturas de cada mês do ano, divididas por banco. Vale o total da fatura entregue; sem ela, a soma das compras. */
@@ -584,6 +537,13 @@ export class DashboardService {
 }
 
 /** Junta as faturas dos cartões de um banco. O estado é o que mais pede ação: fechada, depois aberta, depois paga. */
+/** A fatura como o painel a mostra: o dia do fechamento fica para o calendário. */
+function bankBill(bill: CardBill | null): BankBill | null {
+  if (!bill) return null
+  const { closingDate: _closingDate, ...rest } = bill
+  return rest
+}
+
 function mergeBills(bills: BankBill[]): BankBill | null {
   if (bills.length <= 1) return bills[0] ?? null
   const urgency = { closed: 0, open: 1, paid: 2 } as const

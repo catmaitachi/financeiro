@@ -7,5 +7,5 @@ import type { Container } from '../../container.ts'
  */
 export type McpPorts = Pick<
   Container,
-  'ledger' | 'dashboard' | 'forecasts' | 'reconciliation' | 'sync' | 'connections' | 'clock'
+  'ledger' | 'dashboard' | 'forecasts' | 'reconciliation' | 'subscriptions' | 'calendar' | 'sync' | 'connections' | 'clock'
 >

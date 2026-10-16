@@ -49,6 +49,25 @@ describe('abertura do widget de conexão', () => {
   })
 })
 
+describe('atualizar uma conexão', () => {
+  it('pede nova coleta à instituição e sincroniza quando ela termina', async () => {
+    const { container, provider } = seeded()
+    assert.deepEqual(await container.connections.refresh(ITEM), { requested: true })
+    assert.equal(provider.calls.refreshes, 1)
+  })
+
+  it('no MeuPluggy, que não aceita o pedido, copia de novo o que ele já tem', async () => {
+    const { container, provider } = seeded()
+    provider.items.get(ITEM)!.institution.name = 'MeuPluggy'
+    provider.transactions = [tx({ postedAt: '2026-10-07T12:00:00.000Z', amountCents: 4200 })]
+
+    assert.deepEqual(await container.connections.refresh(ITEM), { requested: false })
+    assert.equal(provider.calls.refreshes, 0)
+    assert.equal(container.ledger.listTransactions({}).items.length, 1)
+    assert.ok(container.connections.list()[0]?.lastSyncedAt)
+  })
+})
+
 describe('previsão de fatura instável', () => {
   it('compra posterior ao fechamento não volta para a fatura fechada, mesmo que a previsão diga isso', async () => {
     const { provider, container } = seeded()

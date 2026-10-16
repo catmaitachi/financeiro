@@ -1,4 +1,11 @@
-import { CalendarCheckIcon, ChartPieSliceIcon, PlugsConnectedIcon, ReceiptIcon } from '@phosphor-icons/react'
+import {
+  ArrowsClockwiseIcon,
+  CalendarCheckIcon,
+  CalendarDotsIcon,
+  ChartPieSliceIcon,
+  PlugsConnectedIcon,
+  ReceiptIcon,
+} from '@phosphor-icons/react'
 import { lazy, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react'
 
 export interface Section {
@@ -30,6 +37,18 @@ export const sections: Section[] = [
     label: 'Previsões',
     icon: <CalendarCheckIcon />,
     page: lazy(() => import('@/features/forecasts/ForecastsPage')),
+  },
+  {
+    path: '/calendario',
+    label: 'Calendário',
+    icon: <CalendarDotsIcon />,
+    page: lazy(() => import('@/features/calendar/CalendarPage')),
+  },
+  {
+    path: '/assinaturas',
+    label: 'Assinaturas',
+    icon: <ArrowsClockwiseIcon />,
+    page: lazy(() => import('@/features/subscriptions/SubscriptionsPage')),
   },
   {
     path: '/conexoes',

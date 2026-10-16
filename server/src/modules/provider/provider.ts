@@ -108,8 +108,12 @@ export interface FinancialProvider {
    */
   findOwnDataConnector(): Promise<{ id: number; name: string } | null>
   getItem(itemId: string): Promise<ProviderItem>
-  /** Pede à instituição uma nova coleta de dados. */
-  refreshItem(itemId: string): Promise<ProviderItem>
+  /**
+   * Pede à instituição uma nova coleta de dados. `null` quando a conexão não
+   * aceita esse pedido e se atualiza sozinha no ritmo do provedor (na Pluggy,
+   * o MeuPluggy, que busca cada banco uma vez por dia).
+   */
+  refreshItem(itemId: string): Promise<ProviderItem | null>
   deleteItem(itemId: string): Promise<void>
   listAccounts(itemId: string): Promise<ProviderAccount[]>
   listBills(accountId: string): Promise<ProviderBill[]>

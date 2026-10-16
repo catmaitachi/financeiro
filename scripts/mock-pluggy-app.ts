@@ -302,8 +302,12 @@ for (let back = HISTORY_MONTHS - 1; back >= 0; back--) {
     purchases.push({ account: ACCOUNTS.auroraCard, date, description, amount: pick(min, max), type: 'DEBIT', category, merchant: description })
   }
   purchases.push(
-    { account: ACCOUNTS.auroraCard, date: day(previous, 11), description: 'Assinatura Tela Mais', amount: 39.9, type: 'DEBIT', category: '09020000' },
-    { account: ACCOUNTS.auroraCard, date: day(previous, 14), description: 'Assinatura Som Livre', amount: 21.9, type: 'DEBIT', category: '09030000' },
+    { account: ACCOUNTS.auroraCard, date: day(previous, 11), description: 'Assinatura Tela Mais', amount: 39.9, type: 'DEBIT', category: '09020000', merchant: 'Tela Mais' },
+    { account: ACCOUNTS.auroraCard, date: day(previous, 14), description: 'Assinatura Som Livre', amount: 21.9, type: 'DEBIT', category: '09030000', merchant: 'Som Livre' },
+    // Serviços reais do catálogo de assinaturas: aparecem com o logotipo de cada um.
+    { account: ACCOUNTS.auroraCard, date: day(previous, 18), description: 'NETFLIX.COM', amount: 44.9, type: 'DEBIT', category: '09020000', merchant: 'Netflix' },
+    { account: ACCOUNTS.auroraCard, date: day(previous, 22), description: 'PAG*Spotify', amount: 21.9, type: 'DEBIT', category: '09030000', merchant: 'Spotify' },
+    { account: ACCOUNTS.auroraCard, date: day(previous, 26), description: 'APPLE.COM/BILL ICLOUD', amount: 14.9, type: 'DEBIT', category: '09000000', merchant: 'iCloud' },
   )
   for (const purchase of purchases.filter((entry) => visible(entry.date))) {
     billTotal += purchase.amount

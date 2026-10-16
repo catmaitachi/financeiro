@@ -1,4 +1,5 @@
 import {
+  ArrowSquareOutIcon,
   ArrowsClockwiseIcon,
   BankIcon,
   CheckCircleIcon,
@@ -16,7 +17,7 @@ import { useState, type ReactNode } from 'react'
 import type { Connection, ConnectionLevel } from '@shared/api'
 import { swapVariants } from '@/design/motion'
 import { api } from '@/lib/api'
-import { formatMoney, formatRelative } from '@/lib/format'
+import { formatDay, formatMoney, formatRelative } from '@/lib/format'
 import { invalidateLedger, keys, queryClient } from '@/lib/query'
 import { Badge, type Tone } from '@/ui/Badge'
 import { Button } from '@/ui/Button'
@@ -24,6 +25,15 @@ import { Menu } from '@/ui/Menu'
 import { Dialog } from '@/ui/Overlay'
 import { Panel } from '@/ui/Panel'
 import { useToast } from '@/ui/Toast'
+
+/** Depois disso sem dados novos da instituição, o cartão avisa: o normal é uma leitura por dia. */
+const STALE_AFTER_MS = 2 * 86_400_000
+
+/** O dia, no calendário local, de um instante ISO. */
+function localDay(iso: string): string {
+  const date = new Date(iso)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 const LEVEL: Record<ConnectionLevel, { tone: Tone; icon: ReactNode; rail: string }> = {
   ok: { tone: 'positive', icon: <CheckCircleIcon size={12} weight="fill" />, rail: 'bg-positive' },
@@ -44,13 +54,17 @@ export function ConnectionCard({ connection, onReconnect, reconnecting }: Connec
   const notify = useToast()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const { health, institution } = connection
-  const level = LEVEL[health.level]
 
   const refresh = useMutation({
     mutationFn: () => api.connections.refresh(connection.id),
-    onSuccess: (connections) => {
+    onSuccess: ({ requested, connections }) => {
       queryClient.setQueryData(keys.connections, connections)
-      notify('Atualização pedida à instituição.', 'info')
+      if (requested) {
+        notify('Atualização pedida à instituição.', 'info')
+        return
+      }
+      invalidateLedger()
+      notify('O MeuPluggy não aceita pedidos de atualização: ele lê cada banco uma vez por dia. O que ele já tinha foi copiado de novo.', 'info')
     },
     onError: (error) => notify(error.message, 'error'),
   })
@@ -67,6 +81,13 @@ export function ConnectionCard({ connection, onReconnect, reconnecting }: Connec
   })
 
   const needsWidget = health.action === 'reconnect' || health.action === 'mfa'
+  // A sincronização só copia o que a instituição já entregou; o que envelhece é a leitura dela.
+  const stale =
+    connection.providerUpdatedAt !== null && Date.now() - Date.parse(connection.providerUpdatedAt) > STALE_AFTER_MS && health.level === 'ok'
+  const ownData = institution.name.replace(/\s+/g, '').toLowerCase() === 'meupluggy'
+  // Conectada e sem erro, mas parada: "Em dia" seria enganoso.
+  const level = LEVEL[stale ? 'attention' : health.level]
+  const title = stale ? 'Sem dados novos' : health.title
 
   return (
     <Panel layout className="relative overflow-hidden">
@@ -84,14 +105,17 @@ export function ConnectionCard({ connection, onReconnect, reconnecting }: Connec
             <h2 className="truncate text-lg text-text">{institution.name}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
               <AnimatePresence mode="wait" initial={false}>
-                <motion.span key={health.title} variants={swapVariants} initial="initial" animate="enter" exit="exit">
+                <motion.span key={title} variants={swapVariants} initial="initial" animate="enter" exit="exit">
                   <Badge tone={level.tone} icon={level.icon}>
-                    {health.title}
+                    {title}
                   </Badge>
                 </motion.span>
               </AnimatePresence>
               <span className="text-sm text-text-3">
-                {connection.lastSyncedAt ? `Sincronizada ${formatRelative(connection.lastSyncedAt)}` : 'Ainda não sincronizada'}
+                {connection.providerUpdatedAt ? `Dados do banco de ${formatDay(localDay(connection.providerUpdatedAt))}, ` : ''}
+                {connection.lastSyncedAt
+                  ? `${connection.providerUpdatedAt ? 'copiados' : 'Sincronizada'} ${formatRelative(connection.lastSyncedAt)}`
+                  : 'Ainda não sincronizada'}
               </span>
             </div>
           </div>
@@ -132,7 +156,7 @@ export function ConnectionCard({ connection, onReconnect, reconnecting }: Connec
       </div>
 
       <AnimatePresence initial={false}>
-        {health.detail || connection.lastSyncError ? (
+        {health.detail || connection.lastSyncError || stale ? (
           <motion.div
             key="detail"
             initial={{ opacity: 0, height: 0 }}
@@ -140,7 +164,28 @@ export function ConnectionCard({ connection, onReconnect, reconnecting }: Connec
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <p className="mt-4 text-base text-text-2">{health.detail}</p>
+            {health.detail ? <p className="mt-4 text-base text-text-2">{health.detail}</p> : null}
+            {stale ? (
+              <p className="mt-4 text-base text-text-2">
+                {ownData ? (
+                  <>
+                    O MeuPluggy não entrega dados novos desde {formatDay(localDay(connection.providerUpdatedAt!))}. Confira os bancos em{' '}
+                    <a
+                      href="https://meu.pluggy.ai"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="font-medium whitespace-nowrap text-accent-strong underline decoration-accent/40 hover:decoration-accent"
+                    >
+                      meu.pluggy.ai
+                      <ArrowSquareOutIcon size={14} className="ml-1 inline align-[-0.125em]" />
+                    </a>
+                    : se algum pedir para reconectar ou renovar o consentimento, faça por lá e depois clique em Atualizar aqui.
+                  </>
+                ) : (
+                  `A instituição não entrega dados novos desde ${formatDay(localDay(connection.providerUpdatedAt!))}. Se continuar assim, refaça o login.`
+                )}
+              </p>
+            ) : null}
             {connection.lastSyncError ? (
               <p className="mt-2 text-sm text-negative">Última sincronização: {connection.lastSyncError}</p>
             ) : null}

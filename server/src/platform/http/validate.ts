@@ -1,10 +1,13 @@
 import type { Context } from 'hono'
 import { z } from 'zod'
+import { isDay } from '../../../../shared/days.ts'
 import { isMonth } from '../../../../shared/months.ts'
 import { badRequest } from './errors.ts'
 
 export const monthSchema = z.string().refine(isMonth, 'Use o formato AAAA-MM.')
 export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD.')
+/** Data civil que existe no calendário (recusa 31 de fevereiro). */
+export const daySchema = z.string().refine(isDay, 'Use uma data válida no formato AAAA-MM-DD.')
 export const uuidSchema = z.uuid('Identificador inválido.')
 
 function fail(error: z.ZodError): never {

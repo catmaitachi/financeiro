@@ -1,4 +1,5 @@
-import type { SetupStatus } from '../shared/api.ts'
+import type { SetupStatus, SubscriptionList } from '../shared/api.ts'
+import { addDays, weekdayOf } from '../shared/days.ts'
 import { addMonths } from '../shared/months.ts'
 import { MOCK_ITEMS } from './mock-fixtures.ts'
 
@@ -16,7 +17,8 @@ export async function seedMockData(call: ApiCall) {
   for (const itemId of Object.values(MOCK_ITEMS)) await call('POST', '/pluggy/items', { itemId })
   await call('POST', '/sync', { trigger: 'manual' })
 
-  const thisMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()).slice(0, 7)
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+  const thisMonth = today.slice(0, 7)
   const existing = await call<{ series: unknown[] }>('GET', '/forecasts')
   if (existing.series.length === 0) {
     const forecasts = [
@@ -28,8 +30,24 @@ export async function seedMockData(call: ApiCall) {
       { expression: '780', name: 'Editora Cais', startMonth: addMonths(thisMonth, 1) },
       // Parcelado, ainda por receber.
       { expression: '2.500,00/3', name: 'Projeto Casa Alta', startMonth: thisMonth },
+      // Com dia: aparecem no calendário.
+      { expression: '-189,90!', name: 'Seguro do carro', startMonth: thisMonth, dayOfMonth: 25 },
+      { expression: '-120!', name: 'Feira da semana', frequency: 'weekly', startDay: nextFriday(today) },
     ]
     for (const forecast of forecasts) await call('POST', '/forecasts', forecast)
   }
   await call('POST', '/sync', { trigger: 'manual' })
+
+  // Duas assinaturas confirmadas; as demais ficam na fila, esperando o usuário.
+  const { subscriptions } = await call<SubscriptionList>('GET', '/subscriptions')
+  for (const subscription of subscriptions) {
+    if (subscription.status === 'suggested' && ['Netflix', 'Tela Mais'].includes(subscription.name)) {
+      await call('POST', `/subscriptions/${subscription.id}/confirm`, {})
+    }
+  }
+}
+
+/** A próxima sexta-feira, a partir de amanhã. */
+function nextFriday(today: string): string {
+  return addDays(today, ((5 - weekdayOf(today) + 6) % 7) + 1)
 }

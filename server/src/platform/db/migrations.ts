@@ -201,4 +201,57 @@ export const migrations: Migration[] = [
         CHECK (recurring IN (0, 1));
     `,
   },
+  {
+    id: 4,
+    name: 'previsoes-com-dia-e-frequencia',
+    sql: `
+      -- A competência continua sendo a base das previsões. O dia é opcional na mensal
+      -- e obrigatório na semanal e na diária; quando existe, o mês é sempre o dele.
+      ALTER TABLE forecast_series ADD COLUMN frequency TEXT NOT NULL DEFAULT 'monthly'
+        CHECK (frequency IN ('monthly', 'weekly', 'daily'));
+      -- Dia do mês escolhido para a mensal: sobrevive aos meses curtos (31 volta a ser 31 depois de fevereiro).
+      ALTER TABLE forecast_series ADD COLUMN anchor_day INTEGER CHECK (anchor_day BETWEEN 1 AND 31);
+      ALTER TABLE forecast_occurrences ADD COLUMN day TEXT;
+      CREATE INDEX forecast_occurrences_day ON forecast_occurrences(day);
+    `,
+  },
+  {
+    id: 5,
+    name: 'assinaturas',
+    sql: `
+      -- Uma assinatura por estabelecimento. Nasce sugerida pela detecção e só passa a
+      -- valer quando o usuário confirma o vínculo; a dispensada fica guardada para não voltar.
+      CREATE TABLE subscriptions (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        merchant_key     TEXT NOT NULL UNIQUE,
+        name             TEXT NOT NULL,
+        service_id       TEXT,
+        domain           TEXT,
+        cadence          TEXT NOT NULL CHECK (cadence IN ('weekly', 'monthly', 'yearly')),
+        amount_cents     INTEGER NOT NULL CHECK (amount_cents > 0),
+        account_id       TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+        last_charge_date TEXT NOT NULL,
+        status           TEXT NOT NULL CHECK (status IN ('suggested', 'confirmed', 'dismissed', 'ended')),
+        created_at       TEXT NOT NULL,
+        decided_at       TEXT,
+        updated_at       TEXT NOT NULL
+      );
+
+      -- Cobranças vinculadas. A desvinculada à mão continua na tabela, marcada, para não ser anexada de novo.
+      CREATE TABLE subscription_charges (
+        subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+        transaction_id  TEXT NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE CASCADE,
+        excluded        INTEGER NOT NULL DEFAULT 0 CHECK (excluded IN (0, 1)),
+        PRIMARY KEY (subscription_id, transaction_id)
+      );
+    `,
+  },
+  {
+    id: 6,
+    name: 'assinaturas-com-vinculo-manual',
+    sql: `
+      -- Cobrança que o usuário vinculou à mão. A detecção nunca a desfaz nem a refaz.
+      ALTER TABLE subscription_charges ADD COLUMN manual INTEGER NOT NULL DEFAULT 0 CHECK (manual IN (0, 1));
+    `,
+  },
 ]

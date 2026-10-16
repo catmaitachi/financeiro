@@ -67,13 +67,4 @@ export function currentMonth(clock: Clock): Month {
   return monthOfDate(todayLocal(clock))
 }
 
-/** Data civil deslocada em dias (aritmética em UTC para não depender de horário de verão). */
-export function addDays(date: string, delta: number): string {
-  const utc = new Date(`${date}T00:00:00Z`)
-  utc.setUTCDate(utc.getUTCDate() + delta)
-  return utc.toISOString().slice(0, 10)
-}
-
-export function daysBetween(a: string, b: string): number {
-  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000)
-}
+export { addDays, daysBetween } from '../../../shared/days.ts'
